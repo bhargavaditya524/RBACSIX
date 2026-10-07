@@ -1,0 +1,9 @@
+﻿@using Microsoft.AspNetCore.Identity
+@model IdentityRole
+
+<h2>Fill Above form to create New Role</h2>
+<form method="post" asp-action="AddRoles">
+    <label class="form-control">Role Name</label>
+    <input type="text" asp-for="Name" class="form-control" />
+    <input type="submit" id="submit" name="submit" value="submit" />
+</form>

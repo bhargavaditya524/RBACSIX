@@ -1,0 +1,43 @@
+﻿@using Microsoft.AspNetCore.Identity
+@using RBACSIX.Models
+@inject SignInManager<Users> signInManager
+@inject UserManager<Users> userManger
+
+@if(signInManager.IsSignedIn(User))
+{
+    @if (User.IsInRole("Admin"))
+    {
+        <ul class="d-flex align-items-center list-unstyled mb-0" >
+            <li class="nav-item text-dark px-3 ">
+                <a asp-controller="Account" asp-action="Logout">Logout</a>
+            </li>
+        
+            <li class="nav-item text-dark px-3 me-5 ">
+                <a asp-controller="Admin" asp-action="ListRoles">Roles</a>
+            </li>
+            <li class="nav-item text-dark px-1 me-3 ">
+                <a asp-controller="Admin" asp-action="Register">RegisterUser</a>
+            </li>
+        </ul>
+       
+    }
+    else if(User.IsInRole("Staff"))
+    {
+        <ul class="d-flex align-items-center list-unstyled mb-0">
+            <li class="nav-item text-dark px-3 ">
+                <a asp-controller="Account" asp-action="Logout">Logout</a>
+            </li>
+        
+            <li class="nav-item text-dark px-3 me-5 ">
+                <a asp-controller="Worker" asp-action="Work">Work</a>
+            </li>
+        </ul>
+    }
+   
+}
+else
+{
+    <li class="nav-item text-dark">
+                <a asp-controller="Account" asp-action="Login" >Login</a>
+            </li>  
+}
