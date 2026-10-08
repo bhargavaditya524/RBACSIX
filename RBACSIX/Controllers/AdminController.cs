@@ -95,9 +95,13 @@ namespace RBACSIX.Controllers
                     var result = await userManager.CreateAsync(Adduser, user.PasswordHash);
                     if(result.Succeeded)
                     {
-                        await userManager.AddToRoleAsync(Adduser, "Staff");
-                        TempData["Message"] = "User & Roles Added Successfully";
+                        await userManager.AddToRoleAsync(Adduser, user.UserName);
+                        TempData["Message"] = "User Added Successfully";
 
+                    }
+                    else
+                    {
+                        TempData["Message"] = "User can't be added";
                     }
 
                 }

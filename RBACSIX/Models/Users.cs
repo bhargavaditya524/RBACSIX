@@ -4,5 +4,6 @@ namespace RBACSIX.Models
 {
     public class Users: IdentityUser
     {
+       
     }
 }

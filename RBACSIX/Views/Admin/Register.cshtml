@@ -11,10 +11,18 @@
 }
 <h1>Fill The form to Register</h1>
 <form method="post" action="Register" >
+    
+    <div>
+        <label class="form-label">Role:</label>
+        <input type="text" class="form-control" asp-for="UserName" />
+    </div>
+    
     <div >
         <label class="form-label">Email:</label>
         <input type="text" class="form-control" asp-for="Email" />
     </div>
+
+
     <div>
         <label class="form-label">Password:</label>
         <input type="text" class="form-control" asp-for="PasswordHash" />
