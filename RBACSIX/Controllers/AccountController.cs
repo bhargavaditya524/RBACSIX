@@ -31,7 +31,29 @@ namespace RBACSIX.Controllers
                     var result = await signInManager.PasswordSignInAsync(user.Email, user.PasswordHash, false, false);
                     if (result.Succeeded)
                     {
-                        return RedirectToAction("Index", "Home");
+                        
+                        
+                        var result1 = await userManager.GetRolesAsync(userExists);
+                        if (result1.Contains("Admin"))
+                        {
+                            return RedirectToAction("Index", "Admin");
+                        }
+
+                        else if(result1.Contains("Staff"))
+                        {
+                            return RedirectToAction("Index", "Staff");
+                        }
+
+                        else if (result1.Contains("Student"))
+                        {
+                            return RedirectToAction("Index", "Student");
+                        }
+
+                        else
+                        {
+                            return RedirectToAction("Index", "Home");
+                        }
+                        
                     }
                     else
                     {

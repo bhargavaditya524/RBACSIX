@@ -6,6 +6,8 @@ using RBACSIX.Models;
 namespace RBACSIX.Controllers
 {
     [Authorize(Roles ="Admin")]
+
+
     public class AdminController : Controller
     {
         private readonly SignInManager<Users> signInManager;
@@ -115,6 +117,10 @@ namespace RBACSIX.Controllers
                 TempData["Message"] = "Something went wrong!";
             }
             return View(user);
+        }
+        public IActionResult Index()
+        {
+            return View();
         }
     }
 }
