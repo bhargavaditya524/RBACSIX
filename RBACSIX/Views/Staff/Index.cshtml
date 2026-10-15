@@ -1,1 +1,36 @@
-﻿<h1>Index page for Staff role</h1>
+@model IEnumerable<RBACSIX.Models.ViewModels.BatchSummaryViewModel>
+@{
+    ViewData["Title"] = "My batches";
+}
+
+<h1>My batches</h1>
+<p class="text-muted">Open a batch to record attendance or enter student results.</p>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-info">@message</div>
+}
+@if (!Model.Any())
+{
+    <div class="alert alert-info">No batches are assigned to you yet. Contact the administrator.</div>
+}
+else
+{
+    <div class="row g-3">
+    @foreach (var batch in Model)
+    {
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h5">@batch.CourseName — @batch.Name</h2>
+                    <p class="text-muted">@batch.ScheduleDescription</p>
+                    <p>@batch.StartDate.ToString("d") – @batch.EndDate.ToString("d")<br />@batch.StudentCount students</p>
+                    <div class="d-flex gap-2">
+                        <a class="btn btn-primary btn-sm" asp-action="Attendance" asp-route-batchId="@batch.Id">Attendance</a>
+                        <a class="btn btn-outline-primary btn-sm" asp-action="Results" asp-route-batchId="@batch.Id">Record results</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    </div>
+}

@@ -1,0 +1,20 @@
+@model RBACSIX.Models.ViewModels.BatchViewModel
+@{
+    ViewData["Title"] = "Add batch";
+}
+
+<h1>Add batch</h1>
+<form asp-action="CreateBatch" method="post" class="col-lg-7">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="mb-3"><label asp-for="Name" class="form-label"></label><input asp-for="Name" class="form-control" /><span asp-validation-for="Name" class="text-danger"></span></div>
+    <div class="mb-3"><label asp-for="CourseId" class="form-label">Course</label><select asp-for="CourseId" asp-items="Model.Courses" class="form-select"><option value="">Select a course</option></select><span asp-validation-for="CourseId" class="text-danger"></span></div>
+    <div class="mb-3"><label asp-for="StaffUserId" class="form-label">Assigned staff member</label><select asp-for="StaffUserId" asp-items="Model.StaffMembers" class="form-select"><option value="">Unassigned</option></select><span asp-validation-for="StaffUserId" class="text-danger"></span></div>
+    <div class="mb-3"><label asp-for="ScheduleDescription" class="form-label">Schedule (days and times)</label><input asp-for="ScheduleDescription" class="form-control" placeholder="Mon, Wed, Fri — 4:00 PM" /><span asp-validation-for="ScheduleDescription" class="text-danger"></span></div>
+    <div class="row">
+        <div class="col mb-3"><label asp-for="StartDate" class="form-label"></label><input asp-for="StartDate" class="form-control" /><span asp-validation-for="StartDate" class="text-danger"></span></div>
+        <div class="col mb-3"><label asp-for="EndDate" class="form-label"></label><input asp-for="EndDate" class="form-control" /><span asp-validation-for="EndDate" class="text-danger"></span></div>
+    </div>
+    <button type="submit" class="btn btn-primary">Save batch</button>
+    <a asp-action="Batches" class="btn btn-link">Cancel</a>
+</form>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }
