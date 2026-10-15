@@ -1,0 +1,27 @@
+@model IEnumerable<RBACSIX.Models.ViewModels.BatchSummaryViewModel>
+@{
+    ViewData["Title"] = "Batches";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Batches</h1>
+    <a class="btn btn-primary" asp-action="CreateBatch">Add batch</a>
+</div>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-info">@message</div>
+}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead><tr><th>Batch</th><th>Course</th><th>Staff</th><th>Schedule</th><th>Dates</th><th>Students</th></tr></thead>
+        <tbody>
+        @foreach (var batch in Model)
+        {
+            <tr>
+                <td>@batch.Name</td><td>@batch.CourseName</td><td>@(batch.StaffName ?? "Unassigned")</td>
+                <td>@batch.ScheduleDescription</td><td>@batch.StartDate.ToString("d") – @batch.EndDate.ToString("d")</td><td>@batch.StudentCount</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,48 @@
+@model RBACSIX.Models.ViewModels.MarkAttendanceViewModel
+@{
+    ViewData["Title"] = "Record attendance";
+}
+
+<h1>Attendance: @Model.BatchName</h1>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-success">@message</div>
+}
+<form asp-action="Attendance" method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <input asp-for="BatchId" type="hidden" />
+    <div class="mb-3 col-md-4">
+        <label asp-for="Date" class="form-label">Class date</label>
+        <input asp-for="Date" class="form-control" />
+        <span asp-validation-for="Date" class="text-danger"></span>
+    </div>
+    @if (Model.Students.Count == 0)
+    {
+        <div class="alert alert-info">There are no students enrolled in this batch.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead><tr><th>Student</th><th>Present</th><th>Notes</th></tr></thead>
+                <tbody>
+                @for (var i = 0; i < Model.Students.Count; i++)
+                {
+                    <tr>
+                        <td>
+                            @Model.Students[i].StudentName
+                            <input asp-for="Students[i].EnrollmentId" type="hidden" />
+                            <input asp-for="Students[i].StudentName" type="hidden" />
+                        </td>
+                        <td><input asp-for="Students[i].IsPresent" class="form-check-input" /></td>
+                        <td><input asp-for="Students[i].Notes" class="form-control" /></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <button type="submit" class="btn btn-primary">Save attendance</button>
+    }
+    <a asp-action="Index" class="btn btn-link">Back to batches</a>
+</form>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

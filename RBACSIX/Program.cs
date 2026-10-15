@@ -10,50 +10,34 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<AppDbContext>(Options=> Options.UseSqlServer(
     builder.Configuration.GetConnectionString("DefaultConnection")
   ));
-builder.Services.AddIdentity<Users, IdentityRole>().AddEntityFrameworkStores<AppDbContext>().AddDefaultTokenProviders();
+builder.Services.AddIdentity<Users, IdentityRole>(options =>
+{
+    options.Lockout.AllowedForNewUsers = true;
+})
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
 builder.Services.ConfigureApplicationCookie(Options =>
 {
     Options.AccessDeniedPath = "/Account/AccessDenied";
     Options.LoginPath = "/Account/Login";
 } );
 var app = builder.Build();
-using(var scope = app.Services.CreateScope())
+
+using (var scope = app.Services.CreateScope())
 {
-    try
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    string[] roles = { "Admin", "Staff", "Student" };
+    foreach (var role in roles)
     {
-        var services = scope.ServiceProvider;
-        var userManager = services.GetRequiredService<UserManager<Users>>();
-        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-        string[] roles = { "Admin", "Staff", "Student" };
-        foreach(var role in roles)
+        if (!await roleManager.RoleExistsAsync(role))
         {
-            var roleExists = await roleManager.RoleExistsAsync(role);
-            if(!roleExists)
+            var result = await roleManager.CreateAsync(new IdentityRole(role));
+            if (!result.Succeeded)
             {
-                await roleManager.CreateAsync(new IdentityRole(role));
+                var errors = string.Join("; ", result.Errors.Select(error => error.Description));
+                throw new InvalidOperationException($"Unable to create the required '{role}' role: {errors}");
             }
         }
-        string email = "example3@xyz";
-        var userExists = await userManager.FindByEmailAsync(email);
-        if(userExists == null)
-        {
-            var user = new Users()
-            {
-                Email = email,
-                UserName = email,
-                EmailConfirmed = false
-            };
-            string password = "example@#123";
-            var result = await userManager.CreateAsync(user, password);
-            if(result.Succeeded)
-            {
-                await userManager.AddToRoleAsync(user,"Staff");
-            }
-        }
-    }
-    catch(Exception ex)
-    {
-        Console.WriteLine("Unable to process further" + ex.ToString());
     }
 }
 
@@ -68,7 +52,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
-app.UseAuthorization();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapStaticAssets();
 

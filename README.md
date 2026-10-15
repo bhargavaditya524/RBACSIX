@@ -19,6 +19,24 @@ The project demonstrates how authentication and authorization can be implemented
 - ⚡ Entity Framework Core
 - 🧩 MVC architecture
 
+## Coaching Center Workflows
+
+The portal uses ASP.NET Core Identity accounts linked to student or staff profiles. The seeded roles are `Admin`, `Staff`, and `Student`.
+
+- **Admin:** create student and staff accounts, courses, and batches; assign staff to batches; enroll students; and manage non-built-in roles.
+- **Staff:** view assigned batches, record or update daily attendance, and record or update exam results.
+- **Student:** view enrolled batch schedules, instructor details, attendance totals, and exam results.
+- **Shared:** sign in and role-aware navigation. Controllers enforce role checks, and student records are loaded only through the signed-in account's linked student profile.
+
+### First run
+
+1. Configure `ConnectionStrings:DefaultConnection` for SQL Server.
+2. Apply migrations with `dotnet ef database update --project RBACSIX/RBACSIX.csproj`.
+3. Run the app and open `/Account/SetupAdmin` (or use the first-time setup link on the sign-in page) to create the first administrator. That setup page returns 404 after an administrator exists.
+4. Sign in as the administrator to create courses, batches, student/staff accounts, and enrollments.
+
+The coaching migration keeps existing Identity account rows and removes the old EF inheritance discriminator column while transitioning the Identity context to the custom `Users` type. Existing accounts remain available for login; legacy student/staff accounts are not automatically assigned new profiles, so migrate those profiles before using the coaching dashboards.
+
 ## 🛠️ Technologies Used
 
 ### Backend

@@ -1,4 +1,22 @@
-﻿<h1>This page is only for admin can't be accessed from staff</h1>
-<br />
-<b>New User?</b>
-<a asp-action="Register" asp-controller="Admin" class="btn btn-primary">Register</a>
+@model RBACSIX.Models.ViewModels.AdminDashboardViewModel
+@{
+    ViewData["Title"] = "Admin dashboard";
+}
+
+<h1>Admin dashboard</h1>
+<p class="text-muted">Manage coaching center accounts, courses, and batches.</p>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="text-muted">Students</div><div class="display-6">@Model.StudentCount</div></div></div></div>
+    <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="text-muted">Staff</div><div class="display-6">@Model.StaffCount</div></div></div></div>
+    <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="text-muted">Courses</div><div class="display-6">@Model.CourseCount</div></div></div></div>
+    <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="text-muted">Batches</div><div class="display-6">@Model.BatchCount</div></div></div></div>
+</div>
+
+<div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-primary" asp-action="CreateStudent">Add student</a>
+    <a class="btn btn-outline-primary" asp-action="CreateStaff">Add staff</a>
+    <a class="btn btn-outline-primary" asp-action="CreateCourse">Add course</a>
+    <a class="btn btn-outline-primary" asp-action="CreateBatch">Add batch</a>
+    <a class="btn btn-outline-secondary" asp-action="ListRoles">Manage roles</a>
+</div>

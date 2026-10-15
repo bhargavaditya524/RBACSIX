@@ -1,0 +1,41 @@
+@model RBACSIX.Models.ViewModels.EnrollStudentViewModel
+@{
+    ViewData["Title"] = "Student batches";
+}
+
+<h1>Batches for @Model.StudentName</h1>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-info">@message</div>
+}
+<form asp-action="EnrollStudent" method="post" class="row g-2 align-items-end mb-4">
+    <input asp-for="StudentProfileId" type="hidden" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="col-md-8">
+        <label asp-for="BatchId" class="form-label">Available batch</label>
+        <select asp-for="BatchId" asp-items="Model.AvailableBatches" class="form-select"><option value="">Select a batch</option></select>
+        <span asp-validation-for="BatchId" class="text-danger"></span>
+    </div>
+    <div class="col-md-4"><button type="submit" class="btn btn-primary">Enroll student</button></div>
+</form>
+<h2 class="h4">Current enrollments</h2>
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead><tr><th>Batch</th><th>Course</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var enrollment in Model.EnrolledBatches)
+        {
+            <tr>
+                <td>@enrollment.BatchName</td><td>@enrollment.CourseName</td>
+                <td>
+                    <form asp-action="RemoveEnrollment" method="post">
+                        <input type="hidden" name="id" value="@enrollment.EnrollmentId" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+<a asp-action="Students" class="btn btn-link">Back to students</a>

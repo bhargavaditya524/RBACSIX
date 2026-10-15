@@ -1,0 +1,43 @@
+@model RBACSIX.Models.ViewModels.RecordResultsViewModel
+@{
+    ViewData["Title"] = "Record results";
+}
+
+<h1>Record results: @Model.BatchName</h1>
+<form asp-action="Results" method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <input asp-for="BatchId" type="hidden" />
+    <div class="row">
+        <div class="col-md-5 mb-3"><label asp-for="ExamName" class="form-label"></label><input asp-for="ExamName" class="form-control" /><span asp-validation-for="ExamName" class="text-danger"></span></div>
+        <div class="col-md-3 mb-3"><label asp-for="ExamDate" class="form-label"></label><input asp-for="ExamDate" class="form-control" /><span asp-validation-for="ExamDate" class="text-danger"></span></div>
+        <div class="col-md-3 mb-3"><label asp-for="MaxMarks" class="form-label">Maximum marks</label><input asp-for="MaxMarks" class="form-control" /><span asp-validation-for="MaxMarks" class="text-danger"></span></div>
+    </div>
+    @if (Model.Students.Count == 0)
+    {
+        <div class="alert alert-info">There are no students enrolled in this batch.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead><tr><th>Student</th><th>Marks</th></tr></thead>
+                <tbody>
+                @for (var i = 0; i < Model.Students.Count; i++)
+                {
+                    <tr>
+                        <td>
+                            @Model.Students[i].StudentName
+                            <input asp-for="Students[i].EnrollmentId" type="hidden" />
+                            <input asp-for="Students[i].StudentName" type="hidden" />
+                        </td>
+                        <td><input asp-for="Students[i].MarksObtained" class="form-control" /></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <button type="submit" class="btn btn-primary">Save results</button>
+    }
+    <a asp-action="Index" class="btn btn-link">Back to batches</a>
+</form>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

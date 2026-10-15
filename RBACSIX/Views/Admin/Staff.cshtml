@@ -1,0 +1,24 @@
+@model IEnumerable<RBACSIX.Models.ViewModels.PersonSummaryViewModel>
+@{
+    ViewData["Title"] = "Staff";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Staff</h1>
+    <a class="btn btn-primary" asp-action="CreateStaff">Add staff member</a>
+</div>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-info">@message</div>
+}
+<div class="table-responsive">
+    <table class="table table-striped align-middle">
+        <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Specialty</th></tr></thead>
+        <tbody>
+        @foreach (var person in Model)
+        {
+            <tr><td>@person.FullName</td><td>@person.Email</td><td>@person.PhoneNumber</td><td>@person.Details</td></tr>
+        }
+        </tbody>
+    </table>
+</div>

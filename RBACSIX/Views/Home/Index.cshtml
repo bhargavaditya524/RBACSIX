@@ -1,5 +1,29 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Coaching Center";
 }
 
-<p>Common Page for all the roles</p>
+<section class="py-5">
+    <div class="row align-items-center">
+        <div class="col-lg-8">
+            <p class="text-uppercase text-primary fw-semibold">Coaching Center Portal</p>
+            <h1 class="display-5 fw-bold">One place to manage learning and teaching.</h1>
+            <p class="lead text-muted">Students can follow their batches and progress. Staff can manage class attendance and results. Administrators coordinate people, courses, and schedules.</p>
+            @if (User.Identity?.IsAuthenticated != true)
+            {
+                <a class="btn btn-primary btn-lg" asp-controller="Account" asp-action="Login">Sign in</a>
+            }
+            else if (User.IsInRole("Admin"))
+            {
+                <a class="btn btn-primary btn-lg" asp-controller="Admin" asp-action="Index">Open admin dashboard</a>
+            }
+            else if (User.IsInRole("Staff"))
+            {
+                <a class="btn btn-primary btn-lg" asp-controller="Staff" asp-action="Index">Open my batches</a>
+            }
+            else if (User.IsInRole("Student"))
+            {
+                <a class="btn btn-primary btn-lg" asp-controller="Student" asp-action="Index">Open my learning</a>
+            }
+        </div>
+    </div>
+</section>
