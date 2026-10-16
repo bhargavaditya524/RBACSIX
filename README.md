@@ -24,8 +24,8 @@ The project demonstrates how authentication and authorization can be implemented
 The portal uses ASP.NET Core Identity accounts linked to student or staff profiles. The seeded roles are `Admin`, `Staff`, and `Student`.
 
 - **Admin:** create student and staff accounts, courses, and batches; assign staff to batches; enroll students; and manage non-built-in roles.
-- **Staff:** view assigned batches, record or update daily attendance, and record or update exam results.
-- **Student:** view enrolled batch schedules, instructor details, attendance totals, and exam results.
+- **Staff:** view assigned batches, record or update attendance/results, and schedule Zoom classes for future dates within their assigned batches.
+- **Student:** view enrolled batch schedules, instructor details, attendance totals, exam results, and scheduled Zoom classes with a Join Class link.
 - **Shared:** sign in and role-aware navigation. Controllers enforce role checks, and student records are loaded only through the signed-in account's linked student profile.
 
 ### First run
@@ -36,6 +36,20 @@ The portal uses ASP.NET Core Identity accounts linked to student or staff profil
 4. Sign in as the administrator to create courses, batches, student/staff accounts, and enrollments.
 
 The coaching migration keeps existing Identity account rows and removes the old EF inheritance discriminator column while transitioning the Identity context to the custom `Users` type. Existing accounts remain available for login; legacy student/staff accounts are not automatically assigned new profiles, so migrate those profiles before using the coaching dashboards.
+
+### Zoom class setup
+
+Zoom class creation requires a Zoom Server-to-Server OAuth app with the `meeting:write:meeting:admin` scope enabled and the app activated for the account. Set the Account ID, Client ID, and Client Secret locally; do not commit credentials to `appsettings*.json`:
+
+```powershell
+dotnet user-secrets set "Zoom:AccountId" "YOUR_ZOOM_ACCOUNT_ID" --project .\RBACSIX\RBACSIX.csproj
+dotnet user-secrets set "Zoom:ClientId" "YOUR_ZOOM_CLIENT_ID" --project .\RBACSIX\RBACSIX.csproj
+dotnet user-secrets set "Zoom:ClientSecret" "YOUR_ZOOM_CLIENT_SECRET" --project .\RBACSIX\RBACSIX.csproj
+```
+
+The app can start without Zoom credentials, but Zoom class creation stays disabled and displays setup instructions until they are configured. Partial Zoom credentials stop startup with a configuration error. The default class time zone is `Asia/Kolkata`. Change `Coaching:TimeZoneId` in local configuration (or set `Coaching__TimeZoneId` in the environment) to a supported time-zone ID for your coaching center. Staff schedule meetings from **My batches → Create Zoom class**; only students enrolled in that batch see the class join link. The app stores the Zoom meeting ID and attendee join URL, not the host start URL or OAuth access token.
+
+If Zoom returns an API error, the scheduling page shows its safe error code/message; logs contain the same redacted diagnostic. Zoom recommends checking the response body for the specific error. Never paste account credentials or access tokens into chat, source code, or committed configuration. If credentials were exposed, rotate the app credentials in the Zoom Marketplace, deactivate the old app secret, then update the local `Zoom:AccountId`, `Zoom:ClientId`, and `Zoom:ClientSecret` user-secrets values and restart the app. The app obtains its access token automatically; never copy or configure that token manually. Run the request-contract tests with `dotnet test .\RBACSIX.Tests\RBACSIX.Tests.csproj`.
 
 ## 🛠️ Technologies Used
 

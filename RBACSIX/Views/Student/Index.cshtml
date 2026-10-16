@@ -4,7 +4,7 @@
 }
 
 <h1>Welcome, @Model.StudentName</h1>
-<p class="text-muted">Your coaching schedule, attendance, and exam results.</p>
+<p class="text-muted">Your coaching schedule, attendance, and exam results. Class times are shown in @Model.TimeZoneId.</p>
 
 @if (Model.Batches.Count == 0)
 {
@@ -30,6 +30,37 @@ else
                             <span>(@((batch.PresentCount * 100 / batch.AttendanceCount))%)</span>
                         }
                     </p>
+                    <h3 class="h6 mt-4">Online classes</h3>
+                    @if (batch.ScheduledClasses.Count == 0)
+                    {
+                        <p class="text-muted">No Zoom classes are scheduled yet.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-group mb-3">
+                        @foreach (var scheduledClass in batch.ScheduledClasses)
+                        {
+                            <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <span>
+                                    <strong>@scheduledClass.Title</strong><br />
+                                    <small class="text-muted">@scheduledClass.StartTimeLocal.ToString("f") · @scheduledClass.DurationMinutes min</small>
+                                </span>
+                                @if (scheduledClass.IsUpcoming)
+                                {
+                                    <a class="btn btn-sm btn-success"
+                                       href="@scheduledClass.JoinUrl"
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       referrerpolicy="no-referrer">Join Class</a>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-secondary">Past</span>
+                                }
+                            </li>
+                        }
+                        </ul>
+                    }
                     <h3 class="h6">Results</h3>
                     @if (batch.Results.Count == 0)
                     {

@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="RBACSIX/RBACSIX.csproj" />
+  <Project Path="RBACSIX.Tests/RBACSIX.Tests.csproj" />
 </Solution>
