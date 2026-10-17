@@ -99,6 +99,32 @@ public class ZoomMeetingServiceTests
         Assert.DoesNotContain(AccessToken, exception.Message);
     }
 
+    [Fact]
+    public async Task DeleteMeetingAsync_UsesAuthenticatedDeleteEndpoint()
+    {
+        CapturedRequest? deleteRequest = null;
+        var handler = new StubHttpMessageHandler(async (request, cancellationToken) =>
+        {
+            if (request.RequestUri!.AbsoluteUri == "https://zoom.us/oauth/token")
+            {
+                return JsonResponse(HttpStatusCode.OK, """
+                    {"access_token":"test-access-token","token_type":"bearer","expires_in":3600}
+                    """);
+            }
+
+            deleteRequest = await CaptureAsync(request, cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
+        });
+        var service = CreateService(handler);
+
+        await service.DeleteMeetingAsync("123456789");
+
+        Assert.NotNull(deleteRequest);
+        Assert.Equal(HttpMethod.Delete, deleteRequest.Method);
+        Assert.Equal("https://api.zoom.us/v2/meetings/123456789", deleteRequest.RequestUri);
+        Assert.Equal("Bearer test-access-token", deleteRequest.Authorization);
+    }
+
     private static ZoomMeetingService CreateService(HttpMessageHandler handler)
     {
         var options = Options.Create(new ZoomOptions

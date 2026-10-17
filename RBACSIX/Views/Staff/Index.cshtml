@@ -9,6 +9,10 @@
 {
     <div class="alert alert-info">@message</div>
 }
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
 @if (!Model.Any())
 {
     <div class="alert alert-info">No batches are assigned to you yet. Contact the administrator.</div>
@@ -39,6 +43,13 @@ else
                             <li class="mb-2">
                                 <strong>@scheduledClass.Title</strong><br />
                                 <span class="text-muted">@scheduledClass.StartTimeLocal.ToString("f") (@scheduledClass.DurationMinutes min)</span>
+                                @if (scheduledClass.CanDelete)
+                                {
+                                    <form asp-action="DeleteScheduledClass" method="post" class="d-inline">
+                                        <input type="hidden" name="id" value="@scheduledClass.Id" />
+                                        <button type="submit" class="btn btn-outline-danger btn-sm ms-2">Delete</button>
+                                    </form>
+                                }
                             </li>
                         }
                         </ul>

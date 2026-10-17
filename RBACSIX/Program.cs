@@ -20,6 +20,7 @@ builder.Services.AddIdentity<Users, IdentityRole>(options =>
     .AddDefaultTokenProviders();
 builder.Services.Configure<ZoomOptions>(builder.Configuration.GetSection("Zoom"));
 builder.Services.AddHttpClient<IZoomMeetingService, ZoomMeetingService>();
+builder.Services.AddHostedService<ScheduledClassCleanupService>();
 var coachingTimeZoneId = builder.Configuration["Coaching:TimeZoneId"] ?? "Asia/Kolkata";
 var coachingTimeZone = TimeZoneInfo.FindSystemTimeZoneById(coachingTimeZoneId);
 builder.Services.AddSingleton(coachingTimeZone);

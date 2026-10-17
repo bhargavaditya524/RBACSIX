@@ -55,6 +55,8 @@ public class StudentController : Controller
                             })
                             .ToList(),
                         ScheduledClasses = enrollment.Batch.ScheduledClasses
+                            .Where(scheduledClass =>
+                                scheduledClass.StartTimeUtc.AddMinutes(scheduledClass.DurationMinutes) > now)
                             .OrderBy(scheduledClass => scheduledClass.StartTimeUtc)
                             .Select(scheduledClass => new StudentClassViewModel
                             {
@@ -62,7 +64,7 @@ public class StudentController : Controller
                                 StartTimeLocal = scheduledClass.StartTimeUtc,
                                 DurationMinutes = scheduledClass.DurationMinutes,
                                 JoinUrl = scheduledClass.JoinUrl,
-                                IsUpcoming = scheduledClass.StartTimeUtc >= now
+                                CanJoin = scheduledClass.StartTimeUtc.AddMinutes(scheduledClass.DurationMinutes) > now
                             })
                             .ToList()
                     })

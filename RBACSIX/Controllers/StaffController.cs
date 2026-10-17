@@ -32,13 +32,14 @@ public class StaffController : Controller
     public async Task<IActionResult> Index()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var now = DateTime.UtcNow;
         var batches = await GetAssignedBatches(userId)
-            .Include(batch => batch.ScheduledClasses)
+            .Include(batch => batch.ScheduledClasses
+                .Where(scheduledClass => scheduledClass.StartTimeUtc.AddMinutes(scheduledClass.DurationMinutes) > now))
             .Include(batch => batch.Enrollments)
             .Include(batch => batch.Course)
             .OrderBy(batch => batch.StartDate)
             .ToListAsync();
-        var now = DateTime.UtcNow;
         var model = batches.Select(batch => new BatchSummaryViewModel
             {
                 Id = batch.Id,
@@ -53,6 +54,7 @@ public class StaffController : Controller
                     .OrderBy(scheduledClass => scheduledClass.StartTimeUtc)
                     .Select(scheduledClass => new ScheduledClassSummaryViewModel
                     {
+                        Id = scheduledClass.Id,
                         Title = scheduledClass.Title,
                         BatchName = batch.Name,
                         StartTimeLocal = TimeZoneInfo.ConvertTimeFromUtc(
@@ -60,12 +62,61 @@ public class StaffController : Controller
                             _coachingTimeZone),
                         DurationMinutes = scheduledClass.DurationMinutes,
                         ZoomMeetingId = scheduledClass.ZoomMeetingId,
-                        IsUpcoming = scheduledClass.StartTimeUtc >= now
+                        IsUpcoming = scheduledClass.StartTimeUtc >= now,
+                        CanDelete = scheduledClass.CreatedByStaffUserId == userId
                     })
                     .ToList()
             })
             .ToList();
         return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteScheduledClass(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var scheduledClass = await _db.ScheduledClasses
+            .SingleOrDefaultAsync(item =>
+                item.Id == id &&
+                item.CreatedByStaffUserId == userId);
+        if (scheduledClass is null)
+            return NotFound();
+
+        try
+        {
+            await _zoomMeetingService.DeleteMeetingAsync(
+                scheduledClass.ZoomMeetingId,
+                HttpContext.RequestAborted);
+        }
+        catch (ZoomMeetingException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Staff user {UserId} could not delete Zoom class {ScheduledClassId}; retaining its record.",
+                userId,
+                scheduledClass.Id);
+            TempData["ErrorMessage"] = "Zoom could not cancel this class. The class was not deleted; try again.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        _db.ScheduledClasses.Remove(scheduledClass);
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException exception)
+        {
+            _logger.LogError(
+                exception,
+                "Zoom class {ScheduledClassId} was canceled, but its local record could not be deleted.",
+                scheduledClass.Id);
+            TempData["ErrorMessage"] = "The Zoom meeting was canceled, but the class record could not be deleted. Contact an administrator.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        TempData["Message"] = "Zoom class deleted.";
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpGet]
@@ -409,17 +460,23 @@ public class StaffController : Controller
     private async Task PopulateScheduledClassesAsync(CreateScheduledClassViewModel model)
     {
         var now = DateTime.UtcNow;
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var scheduledClasses = await _db.ScheduledClasses
-            .Where(scheduledClass => scheduledClass.BatchId == model.BatchId)
+            .Where(scheduledClass =>
+                scheduledClass.BatchId == model.BatchId &&
+                scheduledClass.StartTimeUtc.AddMinutes(scheduledClass.DurationMinutes) > now)
             .OrderBy(scheduledClass => scheduledClass.StartTimeUtc)
             .Select(scheduledClass => new ScheduledClassSummaryViewModel
             {
+                Id = scheduledClass.Id,
                 Title = scheduledClass.Title,
                 BatchName = scheduledClass.Batch.Name,
                 StartTimeLocal = scheduledClass.StartTimeUtc,
                 DurationMinutes = scheduledClass.DurationMinutes,
                 ZoomMeetingId = scheduledClass.ZoomMeetingId,
-                IsUpcoming = scheduledClass.StartTimeUtc >= now
+                IsUpcoming = scheduledClass.StartTimeUtc >= now,
+                IsInProgress = scheduledClass.StartTimeUtc < now,
+                CanDelete = scheduledClass.CreatedByStaffUserId == userId
             })
             .ToListAsync();
 

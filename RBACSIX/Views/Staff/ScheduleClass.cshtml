@@ -45,7 +45,7 @@ else
 {
     <div class="table-responsive">
         <table class="table table-striped">
-            <thead><tr><th>Class</th><th>Starts</th><th>Duration</th><th>Meeting ID</th><th>Status</th></tr></thead>
+            <thead><tr><th>Class</th><th>Starts</th><th>Duration</th><th>Meeting ID</th><th>Status</th><th></th></tr></thead>
             <tbody>
             @foreach (var scheduledClass in Model.ScheduledClasses)
             {
@@ -54,7 +54,16 @@ else
                     <td>@scheduledClass.StartTimeLocal.ToString("f")</td>
                     <td>@scheduledClass.DurationMinutes min</td>
                     <td>@scheduledClass.ZoomMeetingId</td>
-                    <td>@(scheduledClass.IsUpcoming ? "Upcoming" : "Past")</td>
+                    <td>@(scheduledClass.IsInProgress ? "In progress" : "Upcoming")</td>
+                    <td>
+                        @if (scheduledClass.CanDelete)
+                        {
+                            <form asp-action="DeleteScheduledClass" method="post">
+                                <input type="hidden" name="id" value="@scheduledClass.Id" />
+                                <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                            </form>
+                        }
+                    </td>
                 </tr>
             }
             </tbody>

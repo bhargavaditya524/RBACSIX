@@ -45,7 +45,7 @@ else
                                     <strong>@scheduledClass.Title</strong><br />
                                     <small class="text-muted">@scheduledClass.StartTimeLocal.ToString("f") · @scheduledClass.DurationMinutes min</small>
                                 </span>
-                                @if (scheduledClass.IsUpcoming)
+                                @if (scheduledClass.CanJoin)
                                 {
                                     <a class="btn btn-sm btn-success"
                                        href="@scheduledClass.JoinUrl"

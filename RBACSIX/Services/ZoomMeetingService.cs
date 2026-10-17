@@ -1,7 +1,8 @@
+using Microsoft.Extensions.Options;
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.Options;
 
 namespace RBACSIX.Services;
 
@@ -63,7 +64,7 @@ public sealed class ZoomMeetingService : IZoomMeetingService
         {
             topic = title,
             type = 2,
-            start_time = startTimeUtc.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"),
+            start_time = startTimeUtc.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),
             duration = durationMinutes,
             timezone = timeZoneId
         });

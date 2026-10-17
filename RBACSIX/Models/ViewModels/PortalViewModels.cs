@@ -147,6 +147,7 @@ public class CreateScheduledClassViewModel
 
 public class ScheduledClassSummaryViewModel
 {
+    public int Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public string BatchName { get; set; } = string.Empty;
     public DateTime StartTimeLocal { get; set; }
@@ -154,6 +155,8 @@ public class ScheduledClassSummaryViewModel
     public string ZoomMeetingId { get; set; } = string.Empty;
     public string JoinUrl { get; set; } = string.Empty;
     public bool IsUpcoming { get; set; }
+    public bool IsInProgress { get; set; }
+    public bool CanDelete { get; set; }
 }
 
 public class EnrollStudentViewModel
@@ -248,7 +251,7 @@ public class StudentClassViewModel
     public DateTime StartTimeLocal { get; set; }
     public int DurationMinutes { get; set; }
     public string JoinUrl { get; set; } = string.Empty;
-    public bool IsUpcoming { get; set; }
+    public bool CanJoin { get; set; }
 }
 
 public class StudentResultSummaryViewModel
