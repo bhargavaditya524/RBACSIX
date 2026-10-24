@@ -73,6 +73,7 @@ public class Batch
     public string? ScheduleDescription { get; set; }
 
     public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
+    public ICollection<ScheduledClass> ScheduledClasses { get; set; } = new List<ScheduledClass>();
 }
 
 public class Enrollment
@@ -136,4 +137,37 @@ public class ExamResult
     [Required]
     public string RecordedByUserId { get; set; } = string.Empty;
     public Users RecordedByUser { get; set; } = null!;
+}
+
+public class ScheduledClass
+{
+    public int Id { get; set; }
+
+    [Required]
+    public int BatchId { get; set; }
+    public Batch Batch { get; set; } = null!;
+
+    [Required]
+    public string CreatedByStaffUserId { get; set; } = string.Empty;
+    public Users CreatedByStaffUser { get; set; } = null!;
+
+    [Required, StringLength(160)]
+    public string Title { get; set; } = string.Empty;
+
+    [Required]
+    public DateTime StartTimeUtc { get; set; }
+
+    [Required, StringLength(100)]
+    public string TimeZoneId { get; set; } = string.Empty;
+
+    [Range(15, 480)]
+    public int DurationMinutes { get; set; }
+
+    [Required, StringLength(32)]
+    public string ZoomMeetingId { get; set; } = string.Empty;
+
+    [Required, StringLength(500)]
+    public string JoinUrl { get; set; } = string.Empty;
+
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
 }

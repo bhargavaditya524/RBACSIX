@@ -321,6 +321,62 @@ namespace RBACSIX.Migrations
                     b.ToTable("ExamResults");
                 });
 
+            modelBuilder.Entity("RBACSIX.Models.ScheduledClass", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BatchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedByStaffUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<string>("JoinUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("StartTimeUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("ZoomMeetingId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BatchId");
+
+                    b.HasIndex("CreatedByStaffUserId");
+
+                    b.HasIndex("ZoomMeetingId")
+                        .IsUnique();
+
+                    b.ToTable("ScheduledClasses");
+                });
+
             modelBuilder.Entity("RBACSIX.Models.StaffProfile", b =>
                 {
                     b.Property<int>("Id")
@@ -573,6 +629,25 @@ namespace RBACSIX.Migrations
                     b.Navigation("RecordedByUser");
                 });
 
+            modelBuilder.Entity("RBACSIX.Models.ScheduledClass", b =>
+                {
+                    b.HasOne("RBACSIX.Models.Batch", "Batch")
+                        .WithMany("ScheduledClasses")
+                        .HasForeignKey("BatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RBACSIX.Models.Users", "CreatedByStaffUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByStaffUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Batch");
+
+                    b.Navigation("CreatedByStaffUser");
+                });
+
             modelBuilder.Entity("RBACSIX.Models.StaffProfile", b =>
                 {
                     b.HasOne("RBACSIX.Models.Users", "User")
@@ -598,6 +673,8 @@ namespace RBACSIX.Migrations
             modelBuilder.Entity("RBACSIX.Models.Batch", b =>
                 {
                     b.Navigation("Enrollments");
+
+                    b.Navigation("ScheduledClasses");
                 });
 
             modelBuilder.Entity("RBACSIX.Models.Course", b =>

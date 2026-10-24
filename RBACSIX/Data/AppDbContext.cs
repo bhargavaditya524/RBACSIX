@@ -16,6 +16,7 @@ namespace RBACSIX.Data
         public DbSet<Enrollment> Enrollments => Set<Enrollment>();
         public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
         public DbSet<ExamResult> ExamResults => Set<ExamResult>();
+        public DbSet<ScheduledClass> ScheduledClasses => Set<ScheduledClass>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -68,6 +69,16 @@ namespace RBACSIX.Data
             builder.Entity<ExamResult>()
                 .HasIndex(result => new { result.EnrollmentId, result.ExamName, result.ExamDate })
                 .IsUnique();
+
+            builder.Entity<ScheduledClass>()
+                .HasIndex(scheduledClass => scheduledClass.ZoomMeetingId)
+                .IsUnique();
+
+            builder.Entity<ScheduledClass>()
+                .HasOne(scheduledClass => scheduledClass.CreatedByStaffUser)
+                .WithMany()
+                .HasForeignKey(scheduledClass => scheduledClass.CreatedByStaffUserId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

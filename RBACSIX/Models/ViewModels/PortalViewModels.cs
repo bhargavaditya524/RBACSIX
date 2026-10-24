@@ -118,6 +118,45 @@ public class BatchSummaryViewModel
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public int StudentCount { get; set; }
+    public int ScheduledClassCount { get; set; }
+    public List<ScheduledClassSummaryViewModel> ScheduledClasses { get; set; } = new();
+}
+
+public class CreateScheduledClassViewModel
+{
+    public int BatchId { get; set; }
+    public string BatchName { get; set; } = string.Empty;
+    public string CourseName { get; set; } = string.Empty;
+
+    [Required, StringLength(160)]
+    public string Title { get; set; } = string.Empty;
+
+    [Required, DataType(DataType.Date)]
+    public DateTime? ClassDate { get; set; } = DateTime.Today;
+
+    [Required, DataType(DataType.Time)]
+    public TimeSpan? ClassTime { get; set; }
+
+    [Range(15, 480)]
+    public int DurationMinutes { get; set; } = 60;
+
+    public string TimeZoneId { get; set; } = string.Empty;
+    public List<ScheduledClassSummaryViewModel> ScheduledClasses { get; set; } = new();
+    public List<SelectListItem> AssignedBatches { get; set; } = new();
+}
+
+public class ScheduledClassSummaryViewModel
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string BatchName { get; set; } = string.Empty;
+    public DateTime StartTimeLocal { get; set; }
+    public int DurationMinutes { get; set; }
+    public string ZoomMeetingId { get; set; } = string.Empty;
+    public string JoinUrl { get; set; } = string.Empty;
+    public bool IsUpcoming { get; set; }
+    public bool IsInProgress { get; set; }
+    public bool CanDelete { get; set; }
 }
 
 public class EnrollStudentViewModel
@@ -188,6 +227,7 @@ public class StudentResultEntryViewModel
 public class StudentDashboardViewModel
 {
     public string StudentName { get; set; } = string.Empty;
+    public string TimeZoneId { get; set; } = string.Empty;
     public List<StudentBatchViewModel> Batches { get; set; } = new();
 }
 
@@ -202,6 +242,16 @@ public class StudentBatchViewModel
     public int PresentCount { get; set; }
     public int AttendanceCount { get; set; }
     public List<StudentResultSummaryViewModel> Results { get; set; } = new();
+    public List<StudentClassViewModel> ScheduledClasses { get; set; } = new();
+}
+
+public class StudentClassViewModel
+{
+    public string Title { get; set; } = string.Empty;
+    public DateTime StartTimeLocal { get; set; }
+    public int DurationMinutes { get; set; }
+    public string JoinUrl { get; set; } = string.Empty;
+    public bool CanJoin { get; set; }
 }
 
 public class StudentResultSummaryViewModel

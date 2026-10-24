@@ -4,10 +4,14 @@
 }
 
 <h1>My batches</h1>
-<p class="text-muted">Open a batch to record attendance or enter student results.</p>
+<p class="text-muted">Open a batch to record attendance, enter results, or create a Zoom class. Times are shown in the coaching center time zone.</p>
 @if (TempData["Message"] is string message)
 {
     <div class="alert alert-info">@message</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
 }
 @if (!Model.Any())
 {
@@ -27,7 +31,29 @@ else
                     <div class="d-flex gap-2">
                         <a class="btn btn-primary btn-sm" asp-action="Attendance" asp-route-batchId="@batch.Id">Attendance</a>
                         <a class="btn btn-outline-primary btn-sm" asp-action="Results" asp-route-batchId="@batch.Id">Record results</a>
+                        <a class="btn btn-outline-success btn-sm" asp-action="ScheduleClass" asp-route-batchId="@batch.Id">Create Zoom class</a>
                     </div>
+                    @if (batch.ScheduledClasses.Count > 0)
+                    {
+                        <hr />
+                        <h3 class="h6">Scheduled Zoom classes</h3>
+                        <ul class="list-unstyled mb-0">
+                        @foreach (var scheduledClass in batch.ScheduledClasses)
+                        {
+                            <li class="mb-2">
+                                <strong>@scheduledClass.Title</strong><br />
+                                <span class="text-muted">@scheduledClass.StartTimeLocal.ToString("f") (@scheduledClass.DurationMinutes min)</span>
+                                @if (scheduledClass.CanDelete)
+                                {
+                                    <form asp-action="DeleteScheduledClass" method="post" class="d-inline">
+                                        <input type="hidden" name="id" value="@scheduledClass.Id" />
+                                        <button type="submit" class="btn btn-outline-danger btn-sm ms-2">Delete</button>
+                                    </form>
+                                }
+                            </li>
+                        }
+                        </ul>
+                    }
                 </div>
             </div>
         </div>

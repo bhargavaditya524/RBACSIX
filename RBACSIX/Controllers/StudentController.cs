@@ -11,20 +11,24 @@ namespace RBACSIX.Controllers;
 public class StudentController : Controller
 {
     private readonly AppDbContext _db;
+    private readonly TimeZoneInfo _coachingTimeZone;
 
-    public StudentController(AppDbContext db)
+    public StudentController(AppDbContext db, TimeZoneInfo coachingTimeZone)
     {
         _db = db;
+        _coachingTimeZone = coachingTimeZone;
     }
 
     public async Task<IActionResult> Index()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var now = DateTime.UtcNow;
         var student = await _db.StudentProfiles
             .Where(profile => profile.UserId == userId)
             .Select(profile => new StudentDashboardViewModel
             {
                 StudentName = profile.FullName,
+                TimeZoneId = _coachingTimeZone.Id,
                 Batches = profile.Enrollments
                     .OrderBy(enrollment => enrollment.Batch.StartDate)
                     .Select(enrollment => new StudentBatchViewModel
@@ -49,6 +53,19 @@ public class StudentController : Controller
                                 MarksObtained = result.MarksObtained,
                                 MaxMarks = result.MaxMarks
                             })
+                            .ToList(),
+                        ScheduledClasses = enrollment.Batch.ScheduledClasses
+                            .Where(scheduledClass =>
+                                scheduledClass.StartTimeUtc.AddMinutes(scheduledClass.DurationMinutes) > now)
+                            .OrderBy(scheduledClass => scheduledClass.StartTimeUtc)
+                            .Select(scheduledClass => new StudentClassViewModel
+                            {
+                                Title = scheduledClass.Title,
+                                StartTimeLocal = scheduledClass.StartTimeUtc,
+                                DurationMinutes = scheduledClass.DurationMinutes,
+                                JoinUrl = scheduledClass.JoinUrl,
+                                CanJoin = scheduledClass.StartTimeUtc.AddMinutes(scheduledClass.DurationMinutes) > now
+                            })
                             .ToList()
                     })
                     .ToList()
@@ -57,6 +74,13 @@ public class StudentController : Controller
 
         if (student is null)
             return NotFound("Your student profile is not linked to this account. Contact the coaching center administrator.");
+
+        foreach (var scheduledClass in student.Batches.SelectMany(batch => batch.ScheduledClasses))
+        {
+            scheduledClass.StartTimeLocal = TimeZoneInfo.ConvertTimeFromUtc(
+                DateTime.SpecifyKind(scheduledClass.StartTimeLocal, DateTimeKind.Utc),
+                _coachingTimeZone);
+        }
 
         return View(student);
     }
