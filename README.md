@@ -1,8 +1,8 @@
-# 🔐 Role-Based Access Control (RBAC) System
+•	Developed a role-based coaching management system for Admin, Staff, and Students.
 
-A web-based **Role-Based Access Control (RBAC)** system built using **ASP.NET Core MVC, Entity Framework Core, ASP.NET Core Identity, and Microsoft SQL Server**.
+•	Admin: Manage roles, courses, batches, students, and staff.
 
-The project demonstrates how authentication and authorization can be implemented to manage users, roles, and access permissions dynamically.
+•	Staff: Track student attendance, schedule live classes, and publish results.
 
 ## 🚀 Features
 
@@ -385,3 +385,4 @@ B.Tech CSE Student | ASP.NET Core Developer
 ---
 
 ⭐ If you find this project useful, consider giving it a star!
+•	Students: View course details and attendance, join live classes, and request enrollment in additional courses.
