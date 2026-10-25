@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace RBACSIX.Models.ViewModels;
@@ -260,4 +261,180 @@ public class StudentResultSummaryViewModel
     public DateTime ExamDate { get; set; }
     public decimal MarksObtained { get; set; }
     public decimal MaxMarks { get; set; }
+}
+
+public class StaffBatchLearningViewModel
+{
+    public int BatchId { get; set; }
+    public string BatchName { get; set; } = string.Empty;
+    public string CourseName { get; set; } = string.Empty;
+    public List<StudyMaterialSummaryViewModel> Materials { get; set; } = new();
+    public List<AssignmentSummaryViewModel> Assignments { get; set; } = new();
+}
+
+public class CreateStudyMaterialViewModel
+{
+    [Range(1, int.MaxValue)]
+    public int BatchId { get; set; }
+
+    [Required, StringLength(160)]
+    public string Title { get; set; } = string.Empty;
+
+    [StringLength(1000)]
+    public string? Description { get; set; }
+
+    [Required]
+    public string ResourceType { get; set; } = "Pdf";
+
+    [Url, StringLength(2000)]
+    public string? ExternalUrl { get; set; }
+
+    public IFormFile? File { get; set; }
+}
+
+public class CreateAssignmentViewModel
+{
+    [Range(1, int.MaxValue)]
+    public int BatchId { get; set; }
+
+    [Required, StringLength(160)]
+    public string Title { get; set; } = string.Empty;
+
+    [Required, StringLength(4000)]
+    public string Description { get; set; } = string.Empty;
+
+    [Range(0.01, 100000)]
+    public decimal MaxScore { get; set; } = 100;
+}
+
+public class CreateBatchAnnouncementViewModel
+{
+    [Range(1, int.MaxValue)]
+    public int BatchId { get; set; }
+
+    [Required, StringLength(160)]
+    public string Title { get; set; } = string.Empty;
+
+    [Required, StringLength(4000)]
+    public string Body { get; set; } = string.Empty;
+}
+
+public class StudyMaterialSummaryViewModel
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string ResourceType { get; set; } = string.Empty;
+    public string? ExternalUrl { get; set; }
+    public string? OriginalFileName { get; set; }
+    public DateTime CreatedUtc { get; set; }
+}
+
+public class AssignmentSummaryViewModel
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public decimal MaxScore { get; set; }
+    public DateTime CreatedUtc { get; set; }
+    public int SubmissionCount { get; set; }
+}
+
+public class GradeSubmissionsViewModel
+{
+    public int AssignmentId { get; set; }
+    public string AssignmentTitle { get; set; } = string.Empty;
+    public decimal MaxScore { get; set; }
+    public List<GradeSubmissionEntryViewModel> Submissions { get; set; } = new();
+}
+
+public class GradeSubmissionEntryViewModel
+{
+    public int Id { get; set; }
+    public string StudentName { get; set; } = string.Empty;
+    public string OriginalFileName { get; set; } = string.Empty;
+    public string? Comments { get; set; }
+    public DateTime SubmittedUtc { get; set; }
+    public decimal? Score { get; set; }
+    public string? Feedback { get; set; }
+    public bool IsGraded { get; set; }
+}
+
+public class GradeAssignmentSubmissionViewModel
+{
+    public int SubmissionId { get; set; }
+
+    [Required, Range(0, 100000)]
+    public decimal? Score { get; set; }
+
+    [StringLength(4000)]
+    public string? Feedback { get; set; }
+}
+
+public class StudentLearningViewModel
+{
+    public string StudentName { get; set; } = string.Empty;
+    public List<StudentLearningBatchViewModel> Batches { get; set; } = new();
+}
+
+public class StudentLearningBatchViewModel
+{
+    public int BatchId { get; set; }
+    public string BatchName { get; set; } = string.Empty;
+    public string CourseName { get; set; } = string.Empty;
+    public List<StudyMaterialSummaryViewModel> Materials { get; set; } = new();
+    public List<StudentAssignmentViewModel> Assignments { get; set; } = new();
+}
+
+public class StudentAssignmentViewModel
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public decimal MaxScore { get; set; }
+    public DateTime CreatedUtc { get; set; }
+    public int? SubmissionId { get; set; }
+    public string? OriginalFileName { get; set; }
+    public string? Comments { get; set; }
+    public DateTime? SubmittedUtc { get; set; }
+    public decimal? Score { get; set; }
+    public string? Feedback { get; set; }
+    public bool IsGraded { get; set; }
+}
+
+public class SubmitAssignmentViewModel
+{
+    public int AssignmentId { get; set; }
+
+    [StringLength(2000)]
+    public string? Comments { get; set; }
+
+    public IFormFile? File { get; set; }
+}
+
+public class AnnouncementSummaryViewModel
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public string? BatchName { get; set; }
+    public bool IsGlobal { get; set; }
+    public DateTime CreatedUtc { get; set; }
+}
+
+public class AnnouncementListViewModel
+{
+    public List<AnnouncementSummaryViewModel> Announcements { get; set; } = new();
+    public bool CanCreateGlobal { get; set; }
+}
+
+public class CreateGlobalAnnouncementViewModel
+{
+    [Required, StringLength(160)]
+    public string Title { get; set; } = string.Empty;
+
+    [Required, StringLength(4000)]
+    public string Body { get; set; } = string.Empty;
+
+    public List<AnnouncementSummaryViewModel> ExistingAnnouncements { get; set; } = new();
 }

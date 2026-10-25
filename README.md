@@ -24,8 +24,9 @@
 The portal uses ASP.NET Core Identity accounts linked to student or staff profiles. The seeded roles are `Admin`, `Staff`, and `Student`.
 
 - **Admin:** create student and staff accounts, courses, and batches; assign staff to batches; enroll students; and manage non-built-in roles.
-- **Staff:** view assigned batches, record or update attendance/results, schedule Zoom classes for future dates within their assigned batches, and delete classes they created.
-- **Student:** view enrolled batch schedules, instructor details, attendance totals, exam results, and active Zoom classes with a Join Class link.
+- **Staff:** view assigned batches, manage batch study materials and assignments, grade submissions, post batch announcements, record attendance/results, and schedule Zoom classes.
+- **Student:** view enrolled batch materials and Zoom classes, submit assignments, review grades and feedback, and read batch/global announcements.
+- **Admin:** manage coaching accounts and batches, publish global announcements visible to every signed-in role.
 - **Shared:** sign in and role-aware navigation. Controllers enforce role checks, and student records are loaded only through the signed-in account's linked student profile.
 
 ### First run
@@ -36,6 +37,8 @@ The portal uses ASP.NET Core Identity accounts linked to student or staff profil
 4. Sign in as the administrator to create courses, batches, student/staff accounts, and enrollments.
 
 The coaching migration keeps existing Identity account rows and removes the old EF inheritance discriminator column while transitioning the Identity context to the custom `Users` type. Existing accounts remain available for login; legacy student/staff accounts are not automatically assigned new profiles, so migrate those profiles before using the coaching dashboards.
+
+Apply all schema changes with `dotnet ef database update --project .\RBACSIX\RBACSIX.csproj`.
 
 ### Zoom class setup
 
@@ -50,6 +53,12 @@ dotnet user-secrets set "Zoom:ClientSecret" "YOUR_ZOOM_CLIENT_SECRET" --project 
 The app can start without Zoom credentials, but Zoom class creation stays disabled and displays setup instructions until they are configured. Partial Zoom credentials stop startup with a configuration error. The default class time zone is `Asia/Kolkata`. Change `Coaching:TimeZoneId` in local configuration (or set `Coaching__TimeZoneId` in the environment) to a supported time-zone ID for your coaching center. Staff schedule meetings from **My batches → Create Zoom class**; only students enrolled in that batch see the class join link. The app stores the Zoom meeting ID and attendee join URL, not the host start URL or OAuth access token.
 
 Completed classes are removed from student and staff lists as soon as their scheduled duration ends. A hosted cleanup task then cancels the Zoom meeting and deletes its database record; it checks again while the app is running and catches up after restart. If Zoom cannot cancel a meeting, the record is retained for retry. Staff can manually delete a class they created at any time; this also cancels the Zoom meeting, and the record is retained if cancellation fails.
+
+### Study materials, assignments, and announcements
+
+Staff open **My batches → Learning content** to add a PDF or HTTP/HTTPS link as study material, post assignments, review submissions, grade them, and publish announcements for that batch. Students access **Materials & assignments** for batches in which they are enrolled. Each student may submit one file plus optional comments, and replace it until Staff grades it. Grading stores a numeric score (up to the assignment's maximum) and written feedback. Assignments do not have due dates in this version. Admin publishes global announcements at **Global announcements**; global posts are visible to all signed-in roles. Staff batch announcements are restricted to the assigned Staff and enrolled students.
+
+Uploads are limited to 20 MB. Study materials accept PDF; student submissions accept PDF, DOCX, XLSX, PPTX, PNG, JPEG, GIF, and WEBP. Files are stored under `RBACSIX\App_Data\uploads` by default, outside `wwwroot`, with generated storage names and database metadata. Set `Files:RootPath` to another private server directory if needed; configuration that points beneath the public web root is rejected. Back up this directory together with SQL Server. The upload directory is excluded from Git.
 
 If Zoom returns an API error, the scheduling page shows its safe error code/message; logs contain the same redacted diagnostic. Zoom recommends checking the response body for the specific error. Never paste account credentials or access tokens into chat, source code, or committed configuration. If credentials were exposed, rotate the app credentials in the Zoom Marketplace, deactivate the old app secret, then update the local `Zoom:AccountId`, `Zoom:ClientId`, and `Zoom:ClientSecret` user-secrets values and restart the app. The app obtains its access token automatically; never copy or configure that token manually. Run the request-contract tests with `dotnet test .\RBACSIX.Tests\RBACSIX.Tests.csproj`.
 

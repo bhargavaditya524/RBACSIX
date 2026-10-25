@@ -17,6 +17,10 @@ namespace RBACSIX.Data
         public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
         public DbSet<ExamResult> ExamResults => Set<ExamResult>();
         public DbSet<ScheduledClass> ScheduledClasses => Set<ScheduledClass>();
+        public DbSet<StudyMaterial> StudyMaterials => Set<StudyMaterial>();
+        public DbSet<Assignment> Assignments => Set<Assignment>();
+        public DbSet<AssignmentSubmission> AssignmentSubmissions => Set<AssignmentSubmission>();
+        public DbSet<Announcement> Announcements => Set<Announcement>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -79,6 +83,51 @@ namespace RBACSIX.Data
                 .WithMany()
                 .HasForeignKey(scheduledClass => scheduledClass.CreatedByStaffUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<StudyMaterial>()
+                .HasIndex(material => new { material.BatchId, material.CreatedUtc });
+
+            builder.Entity<StudyMaterial>()
+                .HasOne(material => material.Batch)
+                .WithMany(batch => batch.StudyMaterials)
+                .HasForeignKey(material => material.BatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Assignment>()
+                .HasIndex(assignment => new { assignment.BatchId, assignment.CreatedUtc });
+
+            builder.Entity<Assignment>()
+                .HasOne(assignment => assignment.Batch)
+                .WithMany(batch => batch.Assignments)
+                .HasForeignKey(assignment => assignment.BatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Assignment>()
+                .Property(assignment => assignment.MaxScore)
+                .HasPrecision(18, 2);
+
+            builder.Entity<AssignmentSubmission>()
+                .HasIndex(submission => new { submission.AssignmentId, submission.StudentProfileId })
+                .IsUnique();
+
+            builder.Entity<AssignmentSubmission>()
+                .HasOne(submission => submission.Student)
+                .WithMany()
+                .HasForeignKey(submission => submission.StudentProfileId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<AssignmentSubmission>()
+                .Property(submission => submission.Score)
+                .HasPrecision(18, 2);
+
+            builder.Entity<Announcement>()
+                .HasIndex(announcement => new { announcement.BatchId, announcement.CreatedUtc });
+
+            builder.Entity<Announcement>()
+                .HasOne(announcement => announcement.Batch)
+                .WithMany(batch => batch.Announcements)
+                .HasForeignKey(announcement => announcement.BatchId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

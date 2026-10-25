@@ -1,0 +1,29 @@
+@model RBACSIX.Models.ViewModels.AnnouncementListViewModel
+@{
+    ViewData["Title"] = "Announcements";
+}
+
+<h1>Announcements</h1>
+@if (Model.CanCreateGlobal)
+{
+    <p><a class="btn btn-primary" asp-controller="Admin" asp-action="GlobalAnnouncements">Manage global announcements</a></p>
+}
+@if (Model.Announcements.Count == 0)
+{
+    <div class="alert alert-info">There are no announcements for you yet.</div>
+}
+@foreach (var announcement in Model.Announcements)
+{
+    <article class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between gap-3">
+                <h2 class="h5">@announcement.Title</h2>
+                <span class="badge @(announcement.IsGlobal ? "text-bg-primary" : "text-bg-secondary")">
+                    @(announcement.IsGlobal ? "Global" : announcement.BatchName)
+                </span>
+            </div>
+            <p class="mb-1">@announcement.Body</p>
+            <small class="text-muted">@announcement.CreatedUtc.ToLocalTime().ToString("g")</small>
+        </div>
+    </article>
+}

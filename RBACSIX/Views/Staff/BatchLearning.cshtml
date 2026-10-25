@@ -1,0 +1,144 @@
+@model RBACSIX.Models.ViewModels.StaffBatchLearningViewModel
+@{
+    ViewData["Title"] = "Batch learning";
+}
+
+<h1>@Model.CourseName — @Model.BatchName</h1>
+<p class="text-muted">Manage study materials, assignments, and announcements for this assigned batch.</p>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-success">@message</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+<div class="row g-4">
+    <section class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h4">Add study material</h2>
+                <form asp-action="CreateStudyMaterial" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="BatchId" value="@Model.BatchId" />
+                    <div class="mb-3">
+                        <label class="form-label" for="material-title">Title</label>
+                        <input class="form-control" id="material-title" name="Title" maxlength="160" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="material-description">Description</label>
+                        <textarea class="form-control" id="material-description" name="Description" maxlength="1000"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="material-type">Type</label>
+                        <select class="form-select" id="material-type" name="ResourceType">
+                            <option value="Pdf">PDF upload</option>
+                            <option value="Link">External link</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="material-file">PDF file (up to 20 MB)</label>
+                        <input class="form-control" id="material-file" name="File" type="file" accept=".pdf,application/pdf" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="material-url">External URL</label>
+                        <input class="form-control" id="material-url" name="ExternalUrl" type="url" maxlength="2000" />
+                    </div>
+                    <button class="btn btn-primary" type="submit">Add material</button>
+                </form>
+            </div>
+        </div>
+    </section>
+    <section class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h4">Post assignment</h2>
+                <form asp-action="CreateAssignment" method="post">
+                    <input type="hidden" name="BatchId" value="@Model.BatchId" />
+                    <div class="mb-3">
+                        <label class="form-label" for="assignment-title">Title</label>
+                        <input class="form-control" id="assignment-title" name="Title" maxlength="160" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="assignment-description">Instructions</label>
+                        <textarea class="form-control" id="assignment-description" name="Description" maxlength="4000" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="assignment-max-score">Maximum score</label>
+                        <input class="form-control" id="assignment-max-score" name="MaxScore" type="number" min="0.01" max="100000" step="0.01" value="100" required />
+                    </div>
+                    <button class="btn btn-primary" type="submit">Post assignment</button>
+                </form>
+            </div>
+        </div>
+    </section>
+</div>
+
+<section class="mt-4">
+    <div class="card">
+        <div class="card-body">
+            <h2 class="h4">Post batch announcement</h2>
+            <form asp-action="CreateBatchAnnouncement" method="post">
+                <input type="hidden" name="BatchId" value="@Model.BatchId" />
+                <div class="row g-3">
+                    <div class="col-md-4"><input class="form-control" name="Title" maxlength="160" placeholder="Announcement title" required /></div>
+                    <div class="col-md-6"><textarea class="form-control" name="Body" maxlength="4000" placeholder="Message for students in this batch" required></textarea></div>
+                    <div class="col-md-2"><button class="btn btn-outline-primary" type="submit">Publish</button></div>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+
+<div class="row g-4 mt-1">
+    <section class="col-lg-6">
+        <h2 class="h4">Study materials</h2>
+        @if (Model.Materials.Count == 0)
+        {
+            <p class="text-muted">No materials have been added.</p>
+        }
+        else
+        {
+            <ul class="list-group">
+                @foreach (var material in Model.Materials)
+                {
+                    <li class="list-group-item">
+                        <strong>@material.Title</strong>
+                        @if (!string.IsNullOrWhiteSpace(material.Description))
+                        {
+                            <p class="mb-1">@material.Description</p>
+                        }
+                        @if (material.ResourceType == "Link")
+                        {
+                            <a href="@material.ExternalUrl" target="_blank" rel="noopener noreferrer">Open link</a>
+                        }
+                        else
+                        {
+                            <a asp-action="DownloadStudyMaterial" asp-route-id="@material.Id">Download @material.OriginalFileName</a>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+    <section class="col-lg-6">
+        <h2 class="h4">Assignments</h2>
+        @if (Model.Assignments.Count == 0)
+        {
+            <p class="text-muted">No assignments have been posted.</p>
+        }
+        else
+        {
+            <ul class="list-group">
+                @foreach (var assignment in Model.Assignments)
+                {
+                    <li class="list-group-item">
+                        <strong>@assignment.Title</strong> · @assignment.SubmissionCount submissions · @assignment.MaxScore points
+                        <p class="mb-1">@assignment.Description</p>
+                        <a asp-action="AssignmentSubmissions" asp-route-assignmentId="@assignment.Id">Review and grade submissions</a>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</div>

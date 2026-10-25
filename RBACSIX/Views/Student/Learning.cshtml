@@ -1,0 +1,103 @@
+@model RBACSIX.Models.ViewModels.StudentLearningViewModel
+@{
+    ViewData["Title"] = "Study materials and assignments";
+}
+
+<h1>Study materials and assignments</h1>
+<p class="text-muted">Materials, tasks, and grades for your enrolled batches.</p>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-success">@message</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+@if (Model.Batches.Count == 0)
+{
+    <div class="alert alert-info">You are not enrolled in any batches.</div>
+}
+@foreach (var batch in Model.Batches)
+{
+    <section class="card mb-4">
+        <div class="card-header"><h2 class="h5 mb-0">@batch.CourseName — @batch.BatchName</h2></div>
+        <div class="card-body">
+            <h3 class="h6">Study materials</h3>
+            @if (batch.Materials.Count == 0)
+            {
+                <p class="text-muted">No materials have been added.</p>
+            }
+            else
+            {
+                <ul>
+                @foreach (var material in batch.Materials)
+                {
+                    <li>
+                        <strong>@material.Title</strong>
+                        @if (!string.IsNullOrWhiteSpace(material.Description))
+                        {
+                            <span> — @material.Description</span>
+                        }
+                        @if (material.ResourceType == "Link")
+                        {
+                            <a href="@material.ExternalUrl" target="_blank" rel="noopener noreferrer">Open link</a>
+                        }
+                        else
+                        {
+                            <a asp-action="DownloadStudyMaterial" asp-route-id="@material.Id">Download PDF</a>
+                        }
+                    </li>
+                }
+                </ul>
+            }
+            <h3 class="h6 mt-4">Assignments</h3>
+            @if (batch.Assignments.Count == 0)
+            {
+                <p class="text-muted">No assignments have been posted.</p>
+            }
+            @foreach (var assignment in batch.Assignments)
+            {
+                <article class="border rounded p-3 mb-3">
+                    <h4 class="h6">@assignment.Title <small class="text-muted">(@assignment.MaxScore points)</small></h4>
+                    <p>@assignment.Description</p>
+                    @if (assignment.SubmissionId.HasValue)
+                    {
+                        <p>
+                            <a asp-action="DownloadSubmission" asp-route-assignmentId="@assignment.Id">@assignment.OriginalFileName</a>
+                            · submitted @assignment.SubmittedUtc?.ToLocalTime().ToString("g")
+                        </p>
+                        @if (assignment.IsGraded)
+                        {
+                            <div class="alert alert-success mb-0">
+                                <strong>Grade:</strong> @assignment.Score / @assignment.MaxScore
+                                @if (!string.IsNullOrWhiteSpace(assignment.Feedback))
+                                {
+                                    <p class="mb-0">@assignment.Feedback</p>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted">Your submission can be replaced until it is graded.</p>
+                        }
+                    }
+                    @if (!assignment.IsGraded)
+                    {
+                        <form asp-action="SubmitAssignment" method="post" enctype="multipart/form-data" class="mt-2">
+                            <input type="hidden" name="AssignmentId" value="@assignment.Id" />
+                            <div class="mb-2">
+                                <label class="form-label" for="file-@assignment.Id">Submission file</label>
+                                <input class="form-control" id="file-@assignment.Id" name="File" type="file" accept=".pdf,.docx,.xlsx,.pptx,.png,.jpg,.jpeg,.gif,.webp" required />
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label" for="comments-@assignment.Id">Comments (optional)</label>
+                                <textarea class="form-control" id="comments-@assignment.Id" name="Comments" maxlength="2000">@assignment.Comments</textarea>
+                            </div>
+                            <button class="btn btn-primary btn-sm" type="submit">@(assignment.SubmissionId.HasValue ? "Replace submission" : "Submit assignment")</button>
+                        </form>
+                    }
+                </article>
+            }
+        </div>
+    </section>
+}

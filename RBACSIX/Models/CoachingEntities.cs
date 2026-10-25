@@ -74,6 +74,9 @@ public class Batch
 
     public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
     public ICollection<ScheduledClass> ScheduledClasses { get; set; } = new List<ScheduledClass>();
+    public ICollection<StudyMaterial> StudyMaterials { get; set; } = new List<StudyMaterial>();
+    public ICollection<Assignment> Assignments { get; set; } = new List<Assignment>();
+    public ICollection<Announcement> Announcements { get; set; } = new List<Announcement>();
 }
 
 public class Enrollment
@@ -168,6 +171,121 @@ public class ScheduledClass
 
     [Required, StringLength(500)]
     public string JoinUrl { get; set; } = string.Empty;
+
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+}
+
+public class StudyMaterial
+{
+    public int Id { get; set; }
+
+    [Required]
+    public int BatchId { get; set; }
+    public Batch Batch { get; set; } = null!;
+
+    [Required]
+    public string CreatedByStaffUserId { get; set; } = string.Empty;
+
+    [Required, StringLength(160)]
+    public string Title { get; set; } = string.Empty;
+
+    [StringLength(1000)]
+    public string? Description { get; set; }
+
+    [Required, StringLength(20)]
+    public string ResourceType { get; set; } = string.Empty;
+
+    [StringLength(2000)]
+    public string? ExternalUrl { get; set; }
+
+    [StringLength(100)]
+    public string? StoredFileName { get; set; }
+
+    [StringLength(255)]
+    public string? OriginalFileName { get; set; }
+
+    [StringLength(100)]
+    public string? ContentType { get; set; }
+
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+}
+
+public class Assignment
+{
+    public int Id { get; set; }
+
+    [Required]
+    public int BatchId { get; set; }
+    public Batch Batch { get; set; } = null!;
+
+    [Required]
+    public string CreatedByStaffUserId { get; set; } = string.Empty;
+
+    [Required, StringLength(160)]
+    public string Title { get; set; } = string.Empty;
+
+    [Required, StringLength(4000)]
+    public string Description { get; set; } = string.Empty;
+
+    [Range(0.01, 100000)]
+    public decimal MaxScore { get; set; }
+
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+
+    public ICollection<AssignmentSubmission> Submissions { get; set; } = new List<AssignmentSubmission>();
+}
+
+public class AssignmentSubmission
+{
+    public int Id { get; set; }
+
+    [Required]
+    public int AssignmentId { get; set; }
+    public Assignment Assignment { get; set; } = null!;
+
+    [Required]
+    public int StudentProfileId { get; set; }
+    public StudentProfile Student { get; set; } = null!;
+
+    [Required, StringLength(100)]
+    public string StoredFileName { get; set; } = string.Empty;
+
+    [Required, StringLength(255)]
+    public string OriginalFileName { get; set; } = string.Empty;
+
+    [Required, StringLength(100)]
+    public string ContentType { get; set; } = string.Empty;
+
+    [StringLength(2000)]
+    public string? Comments { get; set; }
+
+    public DateTime SubmittedUtc { get; set; } = DateTime.UtcNow;
+
+    [Range(0, 100000)]
+    public decimal? Score { get; set; }
+
+    [StringLength(4000)]
+    public string? Feedback { get; set; }
+
+    public string? GradedByStaffUserId { get; set; }
+    public DateTime? GradedUtc { get; set; }
+}
+
+public class Announcement
+{
+    public int Id { get; set; }
+
+    public int? BatchId { get; set; }
+    public Batch? Batch { get; set; }
+
+    [Required]
+    public string CreatedByUserId { get; set; } = string.Empty;
+
+    [Required, StringLength(160)]
+    public string Title { get; set; } = string.Empty;
+
+    [Required, StringLength(4000)]
+    public string Body { get; set; } = string.Empty;
 
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
 }

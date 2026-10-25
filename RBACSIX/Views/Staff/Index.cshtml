@@ -4,7 +4,7 @@
 }
 
 <h1>My batches</h1>
-<p class="text-muted">Open a batch to record attendance, enter results, or create a Zoom class. Times are shown in the coaching center time zone.</p>
+<p class="text-muted">Open a batch to manage learning materials, assignments, announcements, attendance, results, and Zoom classes.</p>
 @if (TempData["Message"] is string message)
 {
     <div class="alert alert-info">@message</div>
@@ -32,6 +32,7 @@ else
                         <a class="btn btn-primary btn-sm" asp-action="Attendance" asp-route-batchId="@batch.Id">Attendance</a>
                         <a class="btn btn-outline-primary btn-sm" asp-action="Results" asp-route-batchId="@batch.Id">Record results</a>
                         <a class="btn btn-outline-success btn-sm" asp-action="ScheduleClass" asp-route-batchId="@batch.Id">Create Zoom class</a>
+                        <a class="btn btn-outline-secondary btn-sm" asp-action="BatchLearning" asp-route-batchId="@batch.Id">Learning content</a>
                     </div>
                     @if (batch.ScheduledClasses.Count > 0)
                     {
