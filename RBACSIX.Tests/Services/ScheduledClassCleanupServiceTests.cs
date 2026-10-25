@@ -90,6 +90,7 @@ public class ScheduledClassCleanupServiceTests
         var controller = new StaffController(
             db,
             zoomService,
+            new StubPrivateFileStorage(),
             TimeZoneInfo.Utc,
             NullLogger<StaffController>.Instance)
         {
@@ -131,6 +132,7 @@ public class ScheduledClassCleanupServiceTests
         var controller = new StaffController(
             db,
             zoomService,
+            new StubPrivateFileStorage(),
             TimeZoneInfo.Utc,
             NullLogger<StaffController>.Instance)
         {
@@ -259,5 +261,16 @@ public class ScheduledClassCleanupServiceTests
     {
         public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();
         public void SaveTempData(HttpContext context, IDictionary<string, object> values) { }
+    }
+
+    private sealed class StubPrivateFileStorage : IPrivateFileStorage
+    {
+        public Task<StoredUpload> SavePdfMaterialAsync(IFormFile file, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+        public Task<StoredUpload> SaveSubmissionAsync(IFormFile file, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+        public FileStream OpenRead(string storedFileName) => throw new NotSupportedException();
+        public Task DeleteAsync(string storedFileName, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 }

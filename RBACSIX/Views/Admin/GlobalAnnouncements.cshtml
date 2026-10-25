@@ -1,0 +1,41 @@
+@model RBACSIX.Models.ViewModels.CreateGlobalAnnouncementViewModel
+@{
+    ViewData["Title"] = "Global announcements";
+}
+
+<h1>Global announcements</h1>
+<p class="text-muted">Global announcements are visible to all signed-in Admins, Staff, and Students.</p>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-success">@message</div>
+}
+<form asp-action="GlobalAnnouncements" method="post" class="col-lg-8 mb-4">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="mb-3">
+        <label asp-for="Title" class="form-label"></label>
+        <input asp-for="Title" class="form-control" maxlength="160" />
+        <span asp-validation-for="Title" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Body" class="form-label">Message</label>
+        <textarea asp-for="Body" class="form-control" maxlength="4000" rows="4"></textarea>
+        <span asp-validation-for="Body" class="text-danger"></span>
+    </div>
+    <button class="btn btn-primary" type="submit">Publish announcement</button>
+</form>
+<h2 class="h4">Published announcements</h2>
+@if (Model.ExistingAnnouncements.Count == 0)
+{
+    <p class="text-muted">No global announcements have been published.</p>
+}
+@foreach (var announcement in Model.ExistingAnnouncements)
+{
+    <article class="card mb-3">
+        <div class="card-body">
+            <h3 class="h5">@announcement.Title</h3>
+            <p>@announcement.Body</p>
+            <small class="text-muted">@announcement.CreatedUtc.ToLocalTime().ToString("g")</small>
+        </div>
+    </article>
+}
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

@@ -1,0 +1,54 @@
+@model RBACSIX.Models.ViewModels.GradeSubmissionsViewModel
+@{
+    ViewData["Title"] = "Assignment submissions";
+}
+
+<h1>@Model.AssignmentTitle</h1>
+<p class="text-muted">Grade submissions out of @Model.MaxScore points.</p>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-success">@message</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+@if (Model.Submissions.Count == 0)
+{
+    <p>No students have submitted this assignment yet.</p>
+}
+else
+{
+    @foreach (var submission in Model.Submissions)
+    {
+        <article class="card mb-3">
+            <div class="card-body">
+                <h2 class="h5">@submission.StudentName</h2>
+                <p class="text-muted">Submitted @submission.SubmittedUtc.ToLocalTime().ToString("g")</p>
+                @if (!string.IsNullOrWhiteSpace(submission.Comments))
+                {
+                    <p>@submission.Comments</p>
+                }
+                <a asp-action="DownloadSubmission" asp-route-id="@submission.Id">@submission.OriginalFileName</a>
+                @if (submission.IsGraded)
+                {
+                    <p class="mt-2"><strong>Current grade:</strong> @submission.Score / @Model.MaxScore</p>
+                }
+                <form asp-action="GradeSubmission" method="post" class="row g-2 mt-2">
+                    <input type="hidden" name="SubmissionId" value="@submission.Id" />
+                    <div class="col-sm-3">
+                        <label class="form-label" for="score-@submission.Id">Score</label>
+                        <input class="form-control" id="score-@submission.Id" name="Score" type="number" min="0" max="@Model.MaxScore" step="0.01" value="@submission.Score" required />
+                    </div>
+                    <div class="col-sm-7">
+                        <label class="form-label" for="feedback-@submission.Id">Feedback</label>
+                        <textarea class="form-control" id="feedback-@submission.Id" name="Feedback" maxlength="4000">@submission.Feedback</textarea>
+                    </div>
+                    <div class="col-sm-2 align-self-end">
+                        <button class="btn btn-primary" type="submit">Save grade</button>
+                    </div>
+                </form>
+            </div>
+        </article>
+    }
+}

@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Uploaded coaching content (kept outside the public web root)
+RBACSIX/App_Data/uploads/

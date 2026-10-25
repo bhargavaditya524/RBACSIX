@@ -37,6 +37,59 @@ public class AdminController : Controller
         });
     }
 
+    [HttpGet]
+    public async Task<IActionResult> GlobalAnnouncements()
+    {
+        return View(new CreateGlobalAnnouncementViewModel
+        {
+            ExistingAnnouncements = await _db.Announcements
+                .Where(announcement => announcement.BatchId == null)
+                .OrderByDescending(announcement => announcement.CreatedUtc)
+                .Select(announcement => new AnnouncementSummaryViewModel
+                {
+                    Id = announcement.Id,
+                    Title = announcement.Title,
+                    Body = announcement.Body,
+                    IsGlobal = true,
+                    CreatedUtc = announcement.CreatedUtc
+                })
+                .ToListAsync()
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> GlobalAnnouncements(CreateGlobalAnnouncementViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            model.ExistingAnnouncements = await _db.Announcements
+                .Where(announcement => announcement.BatchId == null)
+                .OrderByDescending(announcement => announcement.CreatedUtc)
+                .Select(announcement => new AnnouncementSummaryViewModel
+                {
+                    Id = announcement.Id,
+                    Title = announcement.Title,
+                    Body = announcement.Body,
+                    IsGlobal = true,
+                    CreatedUtc = announcement.CreatedUtc
+                })
+                .ToListAsync();
+            return View(model);
+        }
+
+        _db.Announcements.Add(new Announcement
+        {
+            CreatedByUserId = _userManager.GetUserId(User)!,
+            Title = model.Title.Trim(),
+            Body = model.Body.Trim(),
+            CreatedUtc = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+        TempData["Message"] = "Global announcement published.";
+        return RedirectToAction(nameof(GlobalAnnouncements));
+    }
+
     public async Task<IActionResult> Students()
     {
         var students = await _db.StudentProfiles

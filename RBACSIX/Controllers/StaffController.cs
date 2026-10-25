@@ -14,17 +14,20 @@ public class StaffController : Controller
 {
     private readonly AppDbContext _db;
     private readonly IZoomMeetingService _zoomMeetingService;
+    private readonly IPrivateFileStorage _fileStorage;
     private readonly TimeZoneInfo _coachingTimeZone;
     private readonly ILogger<StaffController> _logger;
 
     public StaffController(
         AppDbContext db,
         IZoomMeetingService zoomMeetingService,
+        IPrivateFileStorage fileStorage,
         TimeZoneInfo coachingTimeZone,
         ILogger<StaffController> logger)
     {
         _db = db;
         _zoomMeetingService = zoomMeetingService;
+        _fileStorage = fileStorage;
         _coachingTimeZone = coachingTimeZone;
         _logger = logger;
     }
@@ -118,6 +121,276 @@ public class StaffController : Controller
         TempData["Message"] = "Zoom class deleted.";
         return RedirectToAction(nameof(Index));
     }
+
+        [HttpGet]
+        public async Task<IActionResult> BatchLearning(int batchId)
+        {
+            var batch = await GetAssignedBatches(User.FindFirstValue(ClaimTypes.NameIdentifier))
+                .Include(item => item.Course)
+                .SingleOrDefaultAsync(item => item.Id == batchId);
+            if (batch is null)
+                return NotFound();
+
+            return View(await BuildBatchLearningViewModelAsync(batch));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RequestSizeLimit(21 * 1024 * 1024)]
+        public async Task<IActionResult> CreateStudyMaterial(CreateStudyMaterialViewModel model)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var batch = await GetAssignedBatches(userId).SingleOrDefaultAsync(item => item.Id == model.BatchId);
+            if (batch is null)
+                return NotFound();
+
+            StoredUpload? upload = null;
+            if (string.Equals(model.ResourceType, "Pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                if (model.File is null)
+                    ModelState.AddModelError(nameof(model.File), "Select a PDF file.");
+                if (!string.IsNullOrWhiteSpace(model.ExternalUrl))
+                    ModelState.AddModelError(nameof(model.ExternalUrl), "A PDF material cannot also have a link.");
+            }
+            else if (string.Equals(model.ResourceType, "Link", StringComparison.OrdinalIgnoreCase))
+            {
+                if (model.File is not null)
+                    ModelState.AddModelError(nameof(model.File), "A link material cannot also include a file.");
+                if (!Uri.TryCreate(model.ExternalUrl, UriKind.Absolute, out var uri) ||
+                    uri.Scheme is not ("http" or "https"))
+                    ModelState.AddModelError(nameof(model.ExternalUrl), "Enter a valid HTTP or HTTPS link.");
+            }
+            else
+            {
+                ModelState.AddModelError(nameof(model.ResourceType), "Choose PDF or link.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                TempData["ErrorMessage"] = string.Join(" ", ModelState.Values
+                    .SelectMany(value => value.Errors)
+                    .Select(error => error.ErrorMessage));
+                return RedirectToAction(nameof(BatchLearning), new { batchId = model.BatchId });
+            }
+
+            if (string.Equals(model.ResourceType, "Pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    upload = await _fileStorage.SavePdfMaterialAsync(model.File!, HttpContext.RequestAborted);
+                }
+                catch (InvalidUploadException exception)
+                {
+                    TempData["ErrorMessage"] = exception.Message;
+                    return RedirectToAction(nameof(BatchLearning), new { batchId = model.BatchId });
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    _logger.LogError(exception, "Could not store study material for batch {BatchId}.", model.BatchId);
+                    TempData["ErrorMessage"] = "The study material could not be saved. Try again.";
+                    return RedirectToAction(nameof(BatchLearning), new { batchId = model.BatchId });
+                }
+            }
+
+            var material = new StudyMaterial
+            {
+                BatchId = batch.Id,
+                CreatedByStaffUserId = userId,
+                Title = model.Title.Trim(),
+                Description = model.Description?.Trim(),
+                ResourceType = model.ResourceType,
+                ExternalUrl = string.Equals(model.ResourceType, "Link", StringComparison.OrdinalIgnoreCase)
+                    ? model.ExternalUrl!.Trim()
+                    : null,
+                StoredFileName = upload?.StoredFileName,
+                OriginalFileName = upload?.OriginalFileName,
+                ContentType = upload?.ContentType,
+                CreatedUtc = DateTime.UtcNow
+            };
+            _db.StudyMaterials.Add(material);
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateException exception)
+            {
+                _logger.LogError(exception, "Could not save study material metadata for batch {BatchId}.", batch.Id);
+                if (upload is not null)
+                    await TryDeleteStoredFileAsync(upload.StoredFileName);
+                TempData["ErrorMessage"] = "The study material could not be saved. Try again.";
+                return RedirectToAction(nameof(BatchLearning), new { batchId = batch.Id });
+            }
+
+            TempData["Message"] = "Study material added for this batch.";
+            return RedirectToAction(nameof(BatchLearning), new { batchId = batch.Id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateAssignment(CreateAssignmentViewModel model)
+        {
+            var batch = await GetAssignedBatches(User.FindFirstValue(ClaimTypes.NameIdentifier))
+                .SingleOrDefaultAsync(item => item.Id == model.BatchId);
+            if (batch is null)
+                return NotFound();
+            if (!ModelState.IsValid)
+            {
+                TempData["ErrorMessage"] = "Enter a title, instructions, and a valid maximum score.";
+                return RedirectToAction(nameof(BatchLearning), new { batchId = model.BatchId });
+            }
+
+            _db.Assignments.Add(new Assignment
+            {
+                BatchId = batch.Id,
+                CreatedByStaffUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                Title = model.Title.Trim(),
+                Description = model.Description.Trim(),
+                MaxScore = model.MaxScore,
+                CreatedUtc = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync();
+            TempData["Message"] = "Assignment posted for this batch.";
+            return RedirectToAction(nameof(BatchLearning), new { batchId = batch.Id });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> AssignmentSubmissions(int assignmentId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var assignment = await _db.Assignments
+                .Where(item => item.Id == assignmentId && item.Batch.StaffUserId == userId)
+                .Select(item => new GradeSubmissionsViewModel
+                {
+                    AssignmentId = item.Id,
+                    AssignmentTitle = item.Title,
+                    MaxScore = item.MaxScore,
+                    Submissions = item.Submissions
+                        .OrderBy(submission => submission.SubmittedUtc)
+                        .Select(submission => new GradeSubmissionEntryViewModel
+                        {
+                            Id = submission.Id,
+                            StudentName = submission.Student.FullName,
+                            OriginalFileName = submission.OriginalFileName,
+                            Comments = submission.Comments,
+                            SubmittedUtc = submission.SubmittedUtc,
+                            Score = submission.Score,
+                            Feedback = submission.Feedback,
+                            IsGraded = submission.GradedUtc != null
+                        })
+                        .ToList()
+                })
+                .SingleOrDefaultAsync();
+            return assignment is null ? NotFound() : View(assignment);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> DownloadStudyMaterial(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var material = await _db.StudyMaterials
+                .Where(item => item.Id == id && item.Batch.StaffUserId == userId)
+                .Select(item => new { item.StoredFileName, item.OriginalFileName, item.ContentType })
+                .SingleOrDefaultAsync();
+            if (material?.StoredFileName is null)
+                return NotFound();
+
+            try
+            {
+                return File(_fileStorage.OpenRead(material.StoredFileName), material.ContentType ?? "application/pdf",
+                    material.OriginalFileName ?? "study-material.pdf");
+            }
+            catch (FileNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogError(exception, "Could not read study material {MaterialId}.", id);
+                return Problem("The study material could not be downloaded.");
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> DownloadSubmission(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var submission = await _db.AssignmentSubmissions
+                .Where(item => item.Id == id && item.Assignment.Batch.StaffUserId == userId)
+                .Select(item => new { item.StoredFileName, item.OriginalFileName, item.ContentType })
+                .SingleOrDefaultAsync();
+            if (submission is null)
+                return NotFound();
+
+            try
+            {
+                return File(_fileStorage.OpenRead(submission.StoredFileName), submission.ContentType,
+                    submission.OriginalFileName);
+            }
+            catch (FileNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogError(exception, "Could not read assignment submission {SubmissionId}.", id);
+                return Problem("The assignment file could not be downloaded.");
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GradeSubmission(GradeAssignmentSubmissionViewModel model)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var submission = await _db.AssignmentSubmissions
+                .Include(item => item.Assignment)
+                .ThenInclude(assignment => assignment.Batch)
+                .SingleOrDefaultAsync(item =>
+                    item.Id == model.SubmissionId &&
+                    item.Assignment.Batch.StaffUserId == userId);
+            if (submission is null)
+                return NotFound();
+            if (!ModelState.IsValid || !model.Score.HasValue || model.Score.Value > submission.Assignment.MaxScore)
+            {
+                TempData["ErrorMessage"] = $"Score must be between 0 and {submission.Assignment.MaxScore}.";
+                return RedirectToAction(nameof(AssignmentSubmissions), new { assignmentId = submission.AssignmentId });
+            }
+
+            submission.Score = model.Score.Value;
+            submission.Feedback = model.Feedback?.Trim();
+            submission.GradedByStaffUserId = userId;
+            submission.GradedUtc = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+            TempData["Message"] = "Submission graded.";
+            return RedirectToAction(nameof(AssignmentSubmissions), new { assignmentId = submission.AssignmentId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateBatchAnnouncement(CreateBatchAnnouncementViewModel model)
+        {
+            var batch = await GetAssignedBatches(User.FindFirstValue(ClaimTypes.NameIdentifier))
+                .SingleOrDefaultAsync(item => item.Id == model.BatchId);
+            if (batch is null)
+                return NotFound();
+            if (!ModelState.IsValid)
+            {
+                TempData["ErrorMessage"] = "Enter an announcement title and message.";
+                return RedirectToAction(nameof(BatchLearning), new { batchId = model.BatchId });
+            }
+
+            _db.Announcements.Add(new Announcement
+            {
+                BatchId = batch.Id,
+                CreatedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                Title = model.Title.Trim(),
+                Body = model.Body.Trim(),
+                CreatedUtc = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync();
+            TempData["Message"] = "Announcement posted for this batch.";
+            return RedirectToAction(nameof(BatchLearning), new { batchId = batch.Id });
+        }
 
     [HttpGet]
     public async Task<IActionResult> ScheduleClass(int batchId)
@@ -455,6 +728,55 @@ public class StaffController : Controller
     private IQueryable<Batch> GetAssignedBatches(string? userId)
     {
         return _db.Batches.Where(batch => batch.StaffUserId == userId);
+    }
+
+    private async Task<StaffBatchLearningViewModel> BuildBatchLearningViewModelAsync(Batch batch)
+    {
+        return new StaffBatchLearningViewModel
+        {
+            BatchId = batch.Id,
+            BatchName = batch.Name,
+            CourseName = batch.Course.Name,
+            Materials = await _db.StudyMaterials
+                .Where(material => material.BatchId == batch.Id)
+                .OrderByDescending(material => material.CreatedUtc)
+                .Select(material => new StudyMaterialSummaryViewModel
+                {
+                    Id = material.Id,
+                    Title = material.Title,
+                    Description = material.Description,
+                    ResourceType = material.ResourceType,
+                    ExternalUrl = material.ExternalUrl,
+                    OriginalFileName = material.OriginalFileName,
+                    CreatedUtc = material.CreatedUtc
+                })
+                .ToListAsync(),
+            Assignments = await _db.Assignments
+                .Where(assignment => assignment.BatchId == batch.Id)
+                .OrderByDescending(assignment => assignment.CreatedUtc)
+                .Select(assignment => new AssignmentSummaryViewModel
+                {
+                    Id = assignment.Id,
+                    Title = assignment.Title,
+                    Description = assignment.Description,
+                    MaxScore = assignment.MaxScore,
+                    CreatedUtc = assignment.CreatedUtc,
+                    SubmissionCount = assignment.Submissions.Count
+                })
+                .ToListAsync()
+        };
+    }
+
+    private async Task TryDeleteStoredFileAsync(string storedFileName)
+    {
+        try
+        {
+            await _fileStorage.DeleteAsync(storedFileName);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogError(exception, "Could not remove orphaned upload {StoredFileName}.", storedFileName);
+        }
     }
 
     private async Task PopulateScheduledClassesAsync(CreateScheduledClassViewModel model)
