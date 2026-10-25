@@ -1,4 +1,4 @@
-@model IEnumerable<RBACSIX.Models.ViewModels.PersonSummaryViewModel>
+@model RBACSIX.Models.ViewModels.AdminStudentsViewModel
 @{
     ViewData["Title"] = "Students";
 }
@@ -11,20 +11,37 @@
 {
     <div class="alert alert-info">@message</div>
 }
+<form asp-action="Students" method="get" class="row g-2 mb-3">
+    <div class="col-sm-6 col-md-4">
+        <label for="searchName" class="visually-hidden">Search students by name</label>
+        <input id="searchName" name="searchName" value="@Model.SearchName" class="form-control" placeholder="Search by student name" />
+    </div>
+    <div class="col-auto"><button class="btn btn-outline-primary" type="submit">Search</button></div>
+    @if (!string.IsNullOrWhiteSpace(Model.SearchName))
+    {
+        <div class="col-auto"><a class="btn btn-link" asp-action="Students">Clear</a></div>
+    }
+</form>
 <div class="table-responsive">
     <table class="table table-striped align-middle">
         <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Guardian</th><th></th></tr></thead>
         <tbody>
-        @foreach (var student in Model)
+        @foreach (var student in Model.Students)
         {
             <tr>
                 <td>@student.FullName</td>
                 <td>@student.Email</td>
                 <td>@student.PhoneNumber</td>
                 <td>@student.Details</td>
-                <td><a class="btn btn-sm btn-outline-primary" asp-action="Enrollments" asp-route-studentId="@student.ProfileId">Manage batches</a></td>
+                <td>
+                    <a class="btn btn-sm btn-outline-primary" asp-action="Enrollments" asp-route-studentId="@student.ProfileId">Manage batches &amp; fees</a>
+                </td>
             </tr>
         }
         </tbody>
     </table>
 </div>
+@if (Model.Students.Count == 0)
+{
+    <p class="text-muted">No students match this search.</p>
+}

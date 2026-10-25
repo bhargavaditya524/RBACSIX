@@ -50,7 +50,7 @@ if (zoomConfiguration.All(string.IsNullOrWhiteSpace))
 using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    string[] roles = { "Admin", "Staff", "Student" };
+    string[] roles = { "Admin", "Staff", "Student", "Parent" };
     foreach (var role in roles)
     {
         if (!await roleManager.RoleExistsAsync(role))

@@ -13,11 +13,20 @@
 }
 <div class="table-responsive">
     <table class="table table-striped">
-        <thead><tr><th>Course</th><th>Description</th><th>Status</th></tr></thead>
+        <thead><tr><th>Course</th><th>Description</th><th>Default tuition</th><th>Status</th><th></th></tr></thead>
         <tbody>
         @foreach (var course in Model)
         {
-            <tr><td>@course.Name</td><td>@course.Description</td><td>@(course.IsActive ? "Active" : "Inactive")</td></tr>
+            <tr>
+                <td>@course.Name</td><td>@course.Description</td><td>@course.DefaultFee.ToString("C")</td><td>@(course.IsActive ? "Active" : "Inactive")</td>
+                <td class="text-nowrap">
+                    <a class="btn btn-sm btn-outline-primary" asp-action="EditCourse" asp-route-id="@course.Id">Edit</a>
+                    <form asp-action="DeleteCourse" method="post" class="d-inline" onsubmit="return confirm('Permanently delete this course and every linked batch, enrollment, and related record? Zoom meetings will be canceled first.');">
+                        <input type="hidden" name="id" value="@course.Id" />
+                        <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
         }
         </tbody>
     </table>

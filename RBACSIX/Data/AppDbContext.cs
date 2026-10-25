@@ -21,6 +21,11 @@ namespace RBACSIX.Data
         public DbSet<Assignment> Assignments => Set<Assignment>();
         public DbSet<AssignmentSubmission> AssignmentSubmissions => Set<AssignmentSubmission>();
         public DbSet<Announcement> Announcements => Set<Announcement>();
+        public DbSet<ParentProfile> ParentProfiles => Set<ParentProfile>();
+        public DbSet<ParentStudentLink> ParentStudentLinks => Set<ParentStudentLink>();
+        public DbSet<EnrollmentCharge> EnrollmentCharges => Set<EnrollmentCharge>();
+        public DbSet<EnrollmentPayment> EnrollmentPayments => Set<EnrollmentPayment>();
+        public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -36,9 +41,44 @@ namespace RBACSIX.Data
                 .WithOne(user => user.StaffProfile)
                 .HasForeignKey<StaffProfile>(profile => profile.UserId);
 
+            builder.Entity<ParentProfile>()
+                .HasKey(profile => profile.UserId);
+
+            builder.Entity<ParentProfile>()
+                .HasOne(profile => profile.User)
+                .WithOne(user => user.ParentProfile)
+                .HasForeignKey<ParentProfile>(profile => profile.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<ParentStudentLink>()
+                .HasKey(link => new { link.ParentUserId, link.StudentProfileId });
+
+            builder.Entity<ParentStudentLink>()
+                .HasOne(link => link.Parent)
+                .WithMany(parent => parent.StudentLinks)
+                .HasForeignKey(link => link.ParentUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<ParentStudentLink>()
+                .HasOne(link => link.Student)
+                .WithMany(student => student.ParentLinks)
+                .HasForeignKey(link => link.StudentProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             builder.Entity<Enrollment>()
                 .HasIndex(enrollment => new { enrollment.StudentProfileId, enrollment.BatchId })
                 .IsUnique();
+
+            builder.Entity<Enrollment>()
+                .HasIndex(enrollment => enrollment.BatchId);
+
+            builder.Entity<Course>()
+                .Property(course => course.DefaultFee)
+                .HasPrecision(18, 2);
+
+            builder.Entity<Enrollment>()
+                .Property(enrollment => enrollment.FeeOverride)
+                .HasPrecision(18, 2);
 
             builder.Entity<AttendanceRecord>()
                 .HasIndex(record => new { record.EnrollmentId, record.Date })
@@ -127,6 +167,35 @@ namespace RBACSIX.Data
                 .HasOne(announcement => announcement.Batch)
                 .WithMany(batch => batch.Announcements)
                 .HasForeignKey(announcement => announcement.BatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<EnrollmentCharge>()
+                .Property(charge => charge.Amount)
+                .HasPrecision(18, 2);
+
+            builder.Entity<EnrollmentCharge>()
+                .HasOne(charge => charge.Enrollment)
+                .WithMany(enrollment => enrollment.Charges)
+                .HasForeignKey(charge => charge.EnrollmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<EnrollmentPayment>()
+                .Property(payment => payment.Amount)
+                .HasPrecision(18, 2);
+
+            builder.Entity<EnrollmentPayment>()
+                .HasOne(payment => payment.Enrollment)
+                .WithMany(enrollment => enrollment.Payments)
+                .HasForeignKey(payment => payment.EnrollmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<LeaveRequest>()
+                .HasIndex(request => new { request.EnrollmentId, request.Status, request.StartDate, request.EndDate });
+
+            builder.Entity<LeaveRequest>()
+                .HasOne(request => request.Enrollment)
+                .WithMany(enrollment => enrollment.LeaveRequests)
+                .HasForeignKey(request => request.EnrollmentId)
                 .OnDelete(DeleteBehavior.Cascade);
         }
     }

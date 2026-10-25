@@ -1,0 +1,90 @@
+@model RBACSIX.Models.ViewModels.LeaveRequestsViewModel
+@{
+    ViewData["Title"] = Model.PageTitle ?? "Leave requests";
+}
+
+<h1>@ViewData["Title"]</h1>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-info">@message</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+@if (!Model.CanReview)
+{
+    <section class="card mb-4">
+        <div class="card-body">
+            <h2 class="h5">Request leave</h2>
+            @if (Model.Enrollments.Count == 0)
+            {
+                <p class="text-muted mb-0">No active batch enrollment is available for a leave request.</p>
+            }
+            else
+            {
+                <form asp-action="RequestLeave" method="post" class="row g-3">
+                    @if (Model.SelectedStudentProfileId.HasValue)
+                    {
+                        <input type="hidden" name="StudentProfileId" value="@Model.SelectedStudentProfileId" />
+                    }
+                    <div class="col-md-12">
+                        <label for="EnrollmentId" class="form-label">Batch</label>
+                        <select id="EnrollmentId" name="EnrollmentId" asp-items="Model.Enrollments" class="form-select" required></select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="StartDate" class="form-label">From</label>
+                        <input id="StartDate" name="StartDate" type="date" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label for="EndDate" class="form-label">Through</label>
+                        <input id="EndDate" name="EndDate" type="date" class="form-control" required />
+                    </div>
+                    <div class="col-12">
+                        <label for="Reason" class="form-label">Reason</label>
+                        <textarea id="Reason" name="Reason" class="form-control" maxlength="2000" required></textarea>
+                    </div>
+                    <div class="col-12"><button class="btn btn-primary" type="submit">Submit request</button></div>
+                </form>
+            }
+        </div>
+    </section>
+}
+<h2 class="h4">Request history</h2>
+@if (Model.Requests.Count == 0)
+{
+    <p class="text-muted">No leave requests found.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead><tr><th>Student</th><th>Batch</th><th>Dates</th><th>Reason</th><th>Status</th><th>Review</th></tr></thead>
+            <tbody>
+            @foreach (var request in Model.Requests)
+            {
+                <tr>
+                    <td>@request.StudentName</td><td>@request.BatchName</td>
+                    <td>@request.StartDate.ToString("d") – @request.EndDate.ToString("d")</td>
+                    <td>@request.Reason</td><td>@request.Status</td>
+                    <td>
+                        @if (Model.CanReview && request.Status == "Pending")
+                        {
+                            <form asp-action="ReviewLeaveRequest" method="post" class="d-flex flex-wrap gap-1">
+                                <input type="hidden" name="LeaveRequestId" value="@request.Id" />
+                                <input name="ReviewNote" class="form-control form-control-sm" maxlength="1000" placeholder="Optional note" />
+                                <button class="btn btn-sm btn-success" type="submit" name="Decision" value="Approved">Approve</button>
+                                <button class="btn btn-sm btn-outline-danger" type="submit" name="Decision" value="Rejected">Reject</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span>@request.ReviewNote</span>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

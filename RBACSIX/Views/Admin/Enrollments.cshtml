@@ -8,6 +8,10 @@
 {
     <div class="alert alert-info">@message</div>
 }
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
 <form asp-action="EnrollStudent" method="post" class="row g-2 align-items-end mb-4">
     <input asp-for="StudentProfileId" type="hidden" />
     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
@@ -21,14 +25,19 @@
 <h2 class="h4">Current enrollments</h2>
 <div class="table-responsive">
     <table class="table table-striped">
-        <thead><tr><th>Batch</th><th>Course</th><th></th></tr></thead>
+        <thead><tr><th>Batch</th><th>Course</th><th>Tuition</th><th>Charges</th><th>Paid</th><th>Balance</th><th></th></tr></thead>
         <tbody>
         @foreach (var enrollment in Model.EnrolledBatches)
         {
             <tr>
                 <td>@enrollment.BatchName</td><td>@enrollment.CourseName</td>
+                <td>@enrollment.TuitionFee.ToString("C")</td>
+                <td>@enrollment.MiscellaneousCharges.ToString("C")</td>
+                <td>@enrollment.Payments.ToString("C")</td>
+                <td>@enrollment.Balance.ToString("C")</td>
                 <td>
-                    <form asp-action="RemoveEnrollment" method="post">
+                    <a class="btn btn-sm btn-outline-primary" asp-action="EnrollmentFees" asp-route-enrollmentId="@enrollment.EnrollmentId">Manage fees</a>
+                    <form asp-action="RemoveEnrollment" method="post" class="d-inline">
                         <input type="hidden" name="id" value="@enrollment.EnrollmentId" />
                         <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
                     </form>

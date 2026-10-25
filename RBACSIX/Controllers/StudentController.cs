@@ -52,8 +52,23 @@ public class StudentController : Controller
                         ScheduleDescription = enrollment.Batch.ScheduleDescription,
                         StartDate = enrollment.Batch.StartDate,
                         EndDate = enrollment.Batch.EndDate,
-                        PresentCount = enrollment.AttendanceRecords.Count(record => record.IsPresent),
-                        AttendanceCount = enrollment.AttendanceRecords.Count,
+                        PresentCount = enrollment.AttendanceRecords.Count(record =>
+                            record.IsPresent &&
+                            !enrollment.LeaveRequests.Any(request =>
+                                request.Status == "Approved" &&
+                                request.StartDate <= record.Date &&
+                                request.EndDate >= record.Date)),
+                        AttendanceCount = enrollment.AttendanceRecords.Count(record =>
+                            !enrollment.LeaveRequests.Any(request =>
+                                request.Status == "Approved" &&
+                                request.StartDate <= record.Date &&
+                                request.EndDate >= record.Date)),
+                        TuitionFee = enrollment.FeeOverride ?? enrollment.Batch.Course.DefaultFee,
+                        MiscellaneousCharges = enrollment.Charges.Sum(charge => charge.Amount),
+                        Payments = enrollment.Payments.Sum(payment => payment.Amount),
+                        Balance = (enrollment.FeeOverride ?? enrollment.Batch.Course.DefaultFee) +
+                                  enrollment.Charges.Sum(charge => charge.Amount) -
+                                  enrollment.Payments.Sum(payment => payment.Amount),
                         Results = enrollment.Results
                             .OrderByDescending(result => result.ExamDate)
                             .Select(result => new StudentResultSummaryViewModel
@@ -93,6 +108,87 @@ public class StudentController : Controller
         }
 
         return View(student);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> LeaveRequests()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var studentId = await _db.StudentProfiles
+            .Where(profile => profile.UserId == userId)
+            .Select(profile => (int?)profile.Id)
+            .SingleOrDefaultAsync();
+        if (studentId is null)
+            return NotFound();
+
+        var model = new LeaveRequestsViewModel
+        {
+            PageTitle = "My leave requests",
+            SelectedStudentProfileId = studentId,
+            Enrollments = await _db.Enrollments
+                .Where(enrollment => enrollment.StudentProfileId == studentId)
+                .OrderBy(enrollment => enrollment.Batch.Name)
+                .Select(enrollment => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem(
+                    enrollment.Batch.Name, enrollment.Id.ToString()))
+                .ToListAsync(),
+            Requests = await _db.LeaveRequests
+                .Where(request => request.Enrollment.StudentProfileId == studentId)
+                .OrderByDescending(request => request.CreatedUtc)
+                .Select(request => new LeaveRequestItemViewModel
+                {
+                    Id = request.Id,
+                    EnrollmentId = request.EnrollmentId,
+                    StudentName = request.Enrollment.Student.FullName,
+                    BatchName = request.Enrollment.Batch.Name,
+                    StartDate = request.StartDate,
+                    EndDate = request.EndDate,
+                    Reason = request.Reason,
+                    Status = request.Status,
+                    RequestedByName = "You",
+                    ReviewNote = request.ReviewNote,
+                    CreatedUtc = request.CreatedUtc
+                })
+                .ToListAsync()
+        };
+        return View("~/Views/Shared/LeaveRequests.cshtml", model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RequestLeave(CreateLeaveRequestViewModel model)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var studentId = await _db.StudentProfiles
+            .Where(profile => profile.UserId == userId)
+            .Select(profile => (int?)profile.Id)
+            .SingleOrDefaultAsync();
+        if (studentId is null)
+            return NotFound();
+        if (!await _db.Enrollments.AnyAsync(enrollment =>
+                enrollment.Id == model.EnrollmentId &&
+                enrollment.StudentProfileId == studentId))
+            return NotFound();
+        if (model.StartDate.Date > model.EndDate.Date)
+            ModelState.AddModelError(nameof(model.EndDate), "End date must be on or after the start date.");
+        if (!ModelState.IsValid)
+        {
+            TempData["ErrorMessage"] = string.Join(" ", ModelState.Values
+                .SelectMany(value => value.Errors)
+                .Select(error => error.ErrorMessage));
+            return RedirectToAction(nameof(LeaveRequests));
+        }
+
+        _db.LeaveRequests.Add(new LeaveRequest
+        {
+            EnrollmentId = model.EnrollmentId,
+            RequestedByUserId = userId!,
+            StartDate = model.StartDate.Date,
+            EndDate = model.EndDate.Date,
+            Reason = model.Reason.Trim()
+        });
+        await _db.SaveChangesAsync();
+        TempData["Message"] = "Leave request submitted.";
+        return RedirectToAction(nameof(LeaveRequests));
     }
 
     [HttpGet]
