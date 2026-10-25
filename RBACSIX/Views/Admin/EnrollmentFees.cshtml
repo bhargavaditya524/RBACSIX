@@ -1,0 +1,80 @@
+@model RBACSIX.Models.ViewModels.EnrollmentFeeViewModel
+@{
+    ViewData["Title"] = "Manage student fees";
+}
+
+<h1>Fees for @Model.StudentName</h1>
+<p class="text-muted">@Model.CourseName — @Model.BatchName</p>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-info">@message</div>
+}
+<div class="card mb-4">
+    <div class="card-body">
+        <h2 class="h5">Fee summary</h2>
+        <dl class="row mb-0">
+            <dt class="col-sm-4">Course default tuition</dt><dd class="col-sm-8">@Model.DefaultFee.ToString("C")</dd>
+            <dt class="col-sm-4">Effective tuition</dt><dd class="col-sm-8">@Model.EffectiveTuition.ToString("C")</dd>
+            <dt class="col-sm-4">Miscellaneous charges</dt><dd class="col-sm-8">@Model.MiscellaneousCharges.ToString("C")</dd>
+            <dt class="col-sm-4">Payments received</dt><dd class="col-sm-8">@Model.Payments.ToString("C")</dd>
+            <dt class="col-sm-4">Balance due</dt><dd class="col-sm-8"><strong>@Model.Balance.ToString("C")</strong></dd>
+        </dl>
+    </div>
+</div>
+<div class="row g-4">
+    <div class="col-lg-4">
+        <h2 class="h5">Tuition override</h2>
+        <form asp-action="EditEnrollmentFee" method="post">
+            <input type="hidden" name="EnrollmentId" value="@Model.EnrollmentId" />
+            <label for="FeeOverride" class="form-label">Student-specific tuition</label>
+            <input id="FeeOverride" name="FeeOverride" class="form-control mb-2" type="number" min="0" max="10000000" step="0.01" value="@Model.FeeOverride" />
+            <div class="form-text mb-2">Leave blank to follow the course default.</div>
+            <button class="btn btn-outline-primary" type="submit">Save tuition</button>
+        </form>
+    </div>
+    <div class="col-lg-4">
+        <h2 class="h5">Add miscellaneous charge</h2>
+        <form asp-action="AddEnrollmentCharge" method="post">
+            <input type="hidden" name="EnrollmentId" value="@Model.EnrollmentId" />
+            <label for="Description" class="form-label">Description</label>
+            <input id="Description" name="Description" class="form-control mb-2" maxlength="160" required />
+            <label for="ChargeAmount" class="form-label">Amount</label>
+            <input id="ChargeAmount" name="Amount" class="form-control mb-2" type="number" min="0.01" max="10000000" step="0.01" required />
+            <button class="btn btn-outline-primary" type="submit">Add charge</button>
+        </form>
+    </div>
+    <div class="col-lg-4">
+        <h2 class="h5">Record payment</h2>
+        <form asp-action="RecordEnrollmentPayment" method="post">
+            <input type="hidden" name="EnrollmentId" value="@Model.EnrollmentId" />
+            <label for="PaymentAmount" class="form-label">Amount (up to @Model.Balance.ToString("C"))</label>
+            <input id="PaymentAmount" name="Amount" class="form-control mb-2" type="number" min="0.01" max="@Model.Balance" step="0.01" required />
+            <label for="PaymentDate" class="form-label">Payment date</label>
+            <input id="PaymentDate" name="PaymentDate" class="form-control mb-2" type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+            <label for="Notes" class="form-label">Notes</label>
+            <input id="Notes" name="Notes" class="form-control mb-2" maxlength="500" />
+            <button class="btn btn-outline-primary" type="submit">Record payment</button>
+        </form>
+    </div>
+</div>
+<div class="row g-4 mt-2">
+    <div class="col-md-6">
+        <h2 class="h5">Charges</h2>
+        <ul class="list-group">
+        @foreach (var charge in Model.Charges)
+        {
+            <li class="list-group-item d-flex justify-content-between"><span>@charge.Description <small class="text-muted">@charge.ChargedUtc.ToLocalTime().ToString("g")</small></span><strong>@charge.Amount.ToString("C")</strong></li>
+        }
+        </ul>
+    </div>
+    <div class="col-md-6">
+        <h2 class="h5">Payment history</h2>
+        <ul class="list-group">
+        @foreach (var payment in Model.PaymentHistory)
+        {
+            <li class="list-group-item d-flex justify-content-between"><span>@payment.PaymentDate.ToString("d") @payment.Notes</span><strong>@payment.Amount.ToString("C")</strong></li>
+        }
+        </ul>
+    </div>
+</div>
+<a asp-action="Enrollments" asp-route-studentId="@Model.StudentProfileId" class="btn btn-link mt-3">Back to student batches</a>

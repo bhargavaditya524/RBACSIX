@@ -18,6 +18,30 @@ public class StudentProfile
 
     public DateTime EnrolledOn { get; set; } = DateTime.Today;
     public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
+    public ICollection<ParentStudentLink> ParentLinks { get; set; } = new List<ParentStudentLink>();
+}
+
+public class ParentProfile
+{
+    [Required]
+    public string UserId { get; set; } = string.Empty;
+    public Users User { get; set; } = null!;
+
+    [Required, StringLength(120)]
+    public string FullName { get; set; } = string.Empty;
+
+    public ICollection<ParentStudentLink> StudentLinks { get; set; } = new List<ParentStudentLink>();
+}
+
+public class ParentStudentLink
+{
+    [Required]
+    public string ParentUserId { get; set; } = string.Empty;
+    public ParentProfile Parent { get; set; } = null!;
+
+    [Required]
+    public int StudentProfileId { get; set; }
+    public StudentProfile Student { get; set; } = null!;
 }
 
 public class StaffProfile
@@ -44,6 +68,9 @@ public class Course
 
     [StringLength(1000)]
     public string? Description { get; set; }
+
+    [Range(0, 10000000)]
+    public decimal DefaultFee { get; set; }
 
     public bool IsActive { get; set; } = true;
     public ICollection<Batch> Batches { get; set; } = new List<Batch>();
@@ -72,6 +99,9 @@ public class Batch
     [StringLength(240)]
     public string? ScheduleDescription { get; set; }
 
+    [Range(1, int.MaxValue)]
+    public int? Capacity { get; set; }
+
     public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
     public ICollection<ScheduledClass> ScheduledClasses { get; set; } = new List<ScheduledClass>();
     public ICollection<StudyMaterial> StudyMaterials { get; set; } = new List<StudyMaterial>();
@@ -92,8 +122,13 @@ public class Enrollment
     public Batch Batch { get; set; } = null!;
 
     public DateTime EnrolledOn { get; set; } = DateTime.Today;
+    [Range(0, 10000000)]
+    public decimal? FeeOverride { get; set; }
     public ICollection<AttendanceRecord> AttendanceRecords { get; set; } = new List<AttendanceRecord>();
     public ICollection<ExamResult> Results { get; set; } = new List<ExamResult>();
+    public ICollection<EnrollmentCharge> Charges { get; set; } = new List<EnrollmentCharge>();
+    public ICollection<EnrollmentPayment> Payments { get; set; } = new List<EnrollmentPayment>();
+    public ICollection<LeaveRequest> LeaveRequests { get; set; } = new List<LeaveRequest>();
 }
 
 public class AttendanceRecord
@@ -286,6 +321,81 @@ public class Announcement
 
     [Required, StringLength(4000)]
     public string Body { get; set; } = string.Empty;
+
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+}
+
+public class EnrollmentCharge
+{
+    public int Id { get; set; }
+
+    [Required]
+    public int EnrollmentId { get; set; }
+    public Enrollment Enrollment { get; set; } = null!;
+
+    [Required, StringLength(160)]
+    public string Description { get; set; } = string.Empty;
+
+    [Range(0.01, 10000000)]
+    public decimal Amount { get; set; }
+
+    public DateTime ChargedUtc { get; set; } = DateTime.UtcNow;
+
+    [Required]
+    public string CreatedByAdminUserId { get; set; } = string.Empty;
+}
+
+public class EnrollmentPayment
+{
+    public int Id { get; set; }
+
+    [Required]
+    public int EnrollmentId { get; set; }
+    public Enrollment Enrollment { get; set; } = null!;
+
+    [Range(0.01, 10000000)]
+    public decimal Amount { get; set; }
+
+    [Required]
+    public DateTime PaymentDate { get; set; } = DateTime.Today;
+
+    [StringLength(500)]
+    public string? Notes { get; set; }
+
+    [Required]
+    public string ReceivedByAdminUserId { get; set; } = string.Empty;
+
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+}
+
+public class LeaveRequest
+{
+    public int Id { get; set; }
+
+    [Required]
+    public int EnrollmentId { get; set; }
+    public Enrollment Enrollment { get; set; } = null!;
+
+    [Required]
+    public string RequestedByUserId { get; set; } = string.Empty;
+
+    [Required]
+    public DateTime StartDate { get; set; }
+
+    [Required]
+    public DateTime EndDate { get; set; }
+
+    [Required, StringLength(2000)]
+    public string Reason { get; set; } = string.Empty;
+
+    [Required, StringLength(20)]
+    public string Status { get; set; } = "Pending";
+
+    public string? ReviewedByStaffUserId { get; set; }
+    public DateTime? ReviewedUtc { get; set; }
+
+    [StringLength(1000)]
+    public string? ReviewNote { get; set; }
 
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
 }

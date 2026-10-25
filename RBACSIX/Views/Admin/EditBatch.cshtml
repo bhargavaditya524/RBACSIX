@@ -1,0 +1,51 @@
+@model RBACSIX.Models.ViewModels.BatchViewModel
+@{
+    ViewData["Title"] = "Edit batch";
+}
+
+<h1>Edit batch</h1>
+<form asp-action="EditBatch" method="post" class="col-lg-7">
+    <input asp-for="Id" type="hidden" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="mb-3">
+        <label asp-for="Name" class="form-label"></label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="CourseId" class="form-label">Course</label>
+        <select asp-for="CourseId" asp-items="Model.Courses" class="form-select"></select>
+        <span asp-validation-for="CourseId" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="StaffUserId" class="form-label">Assigned staff</label>
+        <select asp-for="StaffUserId" asp-items="Model.StaffMembers" class="form-select">
+            <option value="">Unassigned</option>
+        </select>
+        <span asp-validation-for="StaffUserId" class="text-danger"></span>
+    </div>
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label asp-for="StartDate" class="form-label"></label>
+            <input asp-for="StartDate" class="form-control" />
+            <span asp-validation-for="StartDate" class="text-danger"></span>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label asp-for="EndDate" class="form-label"></label>
+            <input asp-for="EndDate" class="form-control" />
+            <span asp-validation-for="EndDate" class="text-danger"></span>
+        </div>
+    </div>
+    <div class="mb-3">
+        <label asp-for="ScheduleDescription" class="form-label">Schedule (days and times)</label>
+        <input asp-for="ScheduleDescription" class="form-control" />
+        <span asp-validation-for="ScheduleDescription" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Capacity" class="form-label">Maximum capacity (leave blank for unlimited)</label>
+        <input asp-for="Capacity" class="form-control" min="1" type="number" />
+        <span asp-validation-for="Capacity" class="text-danger"></span>
+    </div>
+    <button class="btn btn-primary" type="submit">Save batch</button>
+    <a asp-action="Batches" class="btn btn-link">Cancel</a>
+</form>

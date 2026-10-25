@@ -5,6 +5,7 @@
 
 <h1>Welcome, @Model.StudentName</h1>
 <p class="text-muted">Your coaching schedule, attendance, and exam results. Class times are shown in @Model.TimeZoneId.</p>
+<p><a class="btn btn-outline-primary" asp-action="LeaveRequests">Request or view leave</a></p>
 
 @if (Model.Batches.Count == 0)
 {
@@ -30,6 +31,8 @@ else
                             <span>(@((batch.PresentCount * 100 / batch.AttendanceCount))%)</span>
                         }
                     </p>
+                    <p class="mb-1"><strong>Fees:</strong> tuition @batch.TuitionFee.ToString("C"), charges @batch.MiscellaneousCharges.ToString("C"), paid @batch.Payments.ToString("C")</p>
+                    <p><strong>Remaining balance:</strong> @batch.Balance.ToString("C")</p>
                     <h3 class="h6 mt-4">Online classes</h3>
                     @if (batch.ScheduledClasses.Count == 0)
                     {

@@ -6,5 +6,6 @@ namespace RBACSIX.Models
     {
         public StudentProfile? StudentProfile { get; set; }
         public StaffProfile? StaffProfile { get; set; }
+        public ParentProfile? ParentProfile { get; set; }
     }
 }

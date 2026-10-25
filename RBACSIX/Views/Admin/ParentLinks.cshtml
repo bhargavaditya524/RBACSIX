@@ -1,0 +1,15 @@
+@model RBACSIX.Models.ViewModels.ParentLinksViewModel
+@{
+    ViewData["Title"] = "Manage parent links";
+}
+
+<h1>Linked students for @Model.ParentName</h1>
+<form asp-action="ParentLinks" method="post" class="col-lg-7">
+    <input asp-for="ParentUserId" type="hidden" />
+    <div class="mb-3">
+        <label asp-for="StudentProfileIds" class="form-label">Students</label>
+        <select asp-for="StudentProfileIds" asp-items="Model.Students" class="form-select" multiple></select>
+    </div>
+    <button class="btn btn-primary" type="submit">Save links</button>
+    <a asp-action="Parents" class="btn btn-link">Cancel</a>
+</form>

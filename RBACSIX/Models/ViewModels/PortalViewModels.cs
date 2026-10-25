@@ -81,6 +81,9 @@ public class CourseViewModel
     [StringLength(1000)]
     public string? Description { get; set; }
 
+    [Range(0, 10000000)]
+    public decimal DefaultFee { get; set; }
+
     public bool IsActive { get; set; } = true;
 }
 
@@ -105,6 +108,9 @@ public class BatchViewModel
     [StringLength(240)]
     public string? ScheduleDescription { get; set; }
 
+    [Range(1, int.MaxValue)]
+    public int? Capacity { get; set; }
+
     public List<SelectListItem> Courses { get; set; } = new();
     public List<SelectListItem> StaffMembers { get; set; } = new();
 }
@@ -120,6 +126,7 @@ public class BatchSummaryViewModel
     public DateTime EndDate { get; set; }
     public int StudentCount { get; set; }
     public int ScheduledClassCount { get; set; }
+    public int? Capacity { get; set; }
     public List<ScheduledClassSummaryViewModel> ScheduledClasses { get; set; } = new();
 }
 
@@ -170,6 +177,7 @@ public class EnrollStudentViewModel
 
     public List<SelectListItem> AvailableBatches { get; set; } = new();
     public List<EnrolledBatchViewModel> EnrolledBatches { get; set; } = new();
+    public string? ErrorMessage { get; set; }
 }
 
 public class EnrolledBatchViewModel
@@ -178,6 +186,10 @@ public class EnrolledBatchViewModel
     public int BatchId { get; set; }
     public string BatchName { get; set; } = string.Empty;
     public string CourseName { get; set; } = string.Empty;
+    public decimal TuitionFee { get; set; }
+    public decimal MiscellaneousCharges { get; set; }
+    public decimal Payments { get; set; }
+    public decimal Balance { get; set; }
 }
 
 public class MarkAttendanceViewModel
@@ -242,6 +254,10 @@ public class StudentBatchViewModel
     public DateTime EndDate { get; set; }
     public int PresentCount { get; set; }
     public int AttendanceCount { get; set; }
+    public decimal TuitionFee { get; set; }
+    public decimal MiscellaneousCharges { get; set; }
+    public decimal Payments { get; set; }
+    public decimal Balance { get; set; }
     public List<StudentResultSummaryViewModel> Results { get; set; } = new();
     public List<StudentClassViewModel> ScheduledClasses { get; set; } = new();
 }
@@ -437,4 +453,159 @@ public class CreateGlobalAnnouncementViewModel
     public string Body { get; set; } = string.Empty;
 
     public List<AnnouncementSummaryViewModel> ExistingAnnouncements { get; set; } = new();
+}
+
+public class AdminStudentsViewModel
+{
+    public string? SearchName { get; set; }
+    public List<PersonSummaryViewModel> Students { get; set; } = new();
+}
+
+public class EnrollmentFeeViewModel
+{
+    public int EnrollmentId { get; set; }
+    public int StudentProfileId { get; set; }
+    public string StudentName { get; set; } = string.Empty;
+    public string BatchName { get; set; } = string.Empty;
+    public string CourseName { get; set; } = string.Empty;
+    public decimal DefaultFee { get; set; }
+    public decimal? FeeOverride { get; set; }
+    public decimal EffectiveTuition { get; set; }
+    public decimal MiscellaneousCharges { get; set; }
+    public decimal Payments { get; set; }
+    public decimal Balance { get; set; }
+    public List<EnrollmentChargeSummaryViewModel> Charges { get; set; } = new();
+    public List<EnrollmentPaymentSummaryViewModel> PaymentHistory { get; set; } = new();
+}
+
+public class EditEnrollmentFeeViewModel
+{
+    public int EnrollmentId { get; set; }
+    [Range(0, 10000000)]
+    public decimal? FeeOverride { get; set; }
+}
+
+public class AddEnrollmentChargeViewModel
+{
+    public int EnrollmentId { get; set; }
+    [Required, StringLength(160)]
+    public string Description { get; set; } = string.Empty;
+    [Range(0.01, 10000000)]
+    public decimal Amount { get; set; }
+}
+
+public class RecordEnrollmentPaymentViewModel
+{
+    public int EnrollmentId { get; set; }
+    [Range(0.01, 10000000)]
+    public decimal Amount { get; set; }
+    [Required, DataType(DataType.Date)]
+    public DateTime PaymentDate { get; set; } = DateTime.Today;
+    [StringLength(500)]
+    public string? Notes { get; set; }
+}
+
+public class EnrollmentChargeSummaryViewModel
+{
+    public string Description { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public DateTime ChargedUtc { get; set; }
+}
+
+public class EnrollmentPaymentSummaryViewModel
+{
+    public decimal Amount { get; set; }
+    public DateTime PaymentDate { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class CreateParentViewModel
+{
+    [Required, StringLength(120)]
+    public string FullName { get; set; } = string.Empty;
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+    [Phone]
+    public string? PhoneNumber { get; set; }
+    [Required, StringLength(100, MinimumLength = 8), DataType(DataType.Password)]
+    public string Password { get; set; } = string.Empty;
+    [Required, DataType(DataType.Password), Compare(nameof(Password))]
+    public string ConfirmPassword { get; set; } = string.Empty;
+    public List<int> StudentProfileIds { get; set; } = new();
+    public List<SelectListItem> Students { get; set; } = new();
+}
+
+public class ParentSummaryViewModel
+{
+    public string UserId { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public int LinkedStudentCount { get; set; }
+}
+
+public class ParentLinksViewModel
+{
+    public string ParentUserId { get; set; } = string.Empty;
+    public string ParentName { get; set; } = string.Empty;
+    public List<int> StudentProfileIds { get; set; } = new();
+    public List<SelectListItem> Students { get; set; } = new();
+}
+
+public class ParentDashboardViewModel
+{
+    public string ParentName { get; set; } = string.Empty;
+    public List<ParentChildDashboardViewModel> Children { get; set; } = new();
+}
+
+public class ParentChildDashboardViewModel
+{
+    public int StudentProfileId { get; set; }
+    public string StudentName { get; set; } = string.Empty;
+    public List<StudentBatchViewModel> Batches { get; set; } = new();
+}
+
+public class CreateLeaveRequestViewModel
+{
+    [Range(1, int.MaxValue)]
+    public int EnrollmentId { get; set; }
+    [Required, DataType(DataType.Date)]
+    public DateTime StartDate { get; set; } = DateTime.Today;
+    [Required, DataType(DataType.Date)]
+    public DateTime EndDate { get; set; } = DateTime.Today;
+    [Required, StringLength(2000)]
+    public string Reason { get; set; } = string.Empty;
+    public int? StudentProfileId { get; set; }
+}
+
+public class LeaveRequestItemViewModel
+{
+    public int Id { get; set; }
+    public int EnrollmentId { get; set; }
+    public string StudentName { get; set; } = string.Empty;
+    public string BatchName { get; set; } = string.Empty;
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string RequestedByName { get; set; } = string.Empty;
+    public string? ReviewNote { get; set; }
+    public DateTime CreatedUtc { get; set; }
+}
+
+public class LeaveRequestsViewModel
+{
+    public bool CanReview { get; set; }
+    public string? PageTitle { get; set; }
+    public List<SelectListItem> Enrollments { get; set; } = new();
+    public int? SelectedStudentProfileId { get; set; }
+    public List<LeaveRequestItemViewModel> Requests { get; set; } = new();
+}
+
+public class ReviewLeaveRequestViewModel
+{
+    public int LeaveRequestId { get; set; }
+    [Required]
+    public string Decision { get; set; } = string.Empty;
+    [StringLength(1000)]
+    public string? ReviewNote { get; set; }
 }
