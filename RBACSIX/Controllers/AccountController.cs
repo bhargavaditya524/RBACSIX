@@ -118,6 +118,8 @@ public class AccountController : Controller
             return RedirectToAction("Index", "Staff");
         if (await _userManager.IsInRoleAsync(user, "Student"))
             return RedirectToAction("Index", "Student");
+        if (await _userManager.IsInRoleAsync(user, "Parent"))
+            return RedirectToAction("Index", "Parent");
 
         return RedirectToAction("Index", "Home");
     }

@@ -1,0 +1,25 @@
+@model IEnumerable<RBACSIX.Models.ViewModels.ParentSummaryViewModel>
+@{
+    ViewData["Title"] = "Parents";
+}
+
+<h1>Parents and guardians</h1>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-info">@message</div>
+}
+<p><a asp-action="CreateParent" class="btn btn-primary">Create parent account</a></p>
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead><tr><th>Name</th><th>Email</th><th>Linked students</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var parent in Model)
+        {
+            <tr>
+                <td>@parent.FullName</td><td>@parent.Email</td><td>@parent.LinkedStudentCount</td>
+                <td><a class="btn btn-sm btn-outline-primary" asp-action="ParentLinks" asp-route-parentUserId="@parent.UserId">Manage links</a></td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

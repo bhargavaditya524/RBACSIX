@@ -1,0 +1,32 @@
+@model RBACSIX.Models.ViewModels.CourseViewModel
+@{
+    ViewData["Title"] = "Edit course";
+}
+
+<h1>Edit course</h1>
+<form asp-action="EditCourse" method="post" class="col-lg-7">
+    <input asp-for="Id" type="hidden" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="mb-3">
+        <label asp-for="Name" class="form-label"></label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Description" class="form-label"></label>
+        <textarea asp-for="Description" class="form-control"></textarea>
+        <span asp-validation-for="Description" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="DefaultFee" class="form-label">Default tuition fee</label>
+        <input asp-for="DefaultFee" class="form-control" type="number" min="0" max="10000000" step="0.01" />
+        <span asp-validation-for="DefaultFee" class="text-danger"></span>
+        <div class="form-text">Students without an individual fee override will use this value.</div>
+    </div>
+    <div class="form-check mb-3">
+        <input asp-for="IsActive" class="form-check-input" />
+        <label asp-for="IsActive" class="form-check-label">Active</label>
+    </div>
+    <button class="btn btn-primary" type="submit">Save course</button>
+    <a asp-action="Courses" class="btn btn-link">Cancel</a>
+</form>

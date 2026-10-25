@@ -332,6 +332,9 @@ namespace RBACSIX.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("Capacity")
+                        .HasColumnType("int");
+
                     b.Property<int>("CourseId")
                         .HasColumnType("int");
 
@@ -370,6 +373,10 @@ namespace RBACSIX.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<decimal>("DefaultFee")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
@@ -401,6 +408,10 @@ namespace RBACSIX.Migrations
                     b.Property<DateTime>("EnrolledOn")
                         .HasColumnType("datetime2");
 
+                    b.Property<decimal?>("FeeOverride")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("StudentProfileId")
                         .HasColumnType("int");
 
@@ -412,6 +423,76 @@ namespace RBACSIX.Migrations
                         .IsUnique();
 
                     b.ToTable("Enrollments");
+                });
+
+            modelBuilder.Entity("RBACSIX.Models.EnrollmentCharge", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("ChargedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByAdminUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<int>("EnrollmentId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EnrollmentId");
+
+                    b.ToTable("EnrollmentCharges");
+                });
+
+            modelBuilder.Entity("RBACSIX.Models.EnrollmentPayment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EnrollmentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("PaymentDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReceivedByAdminUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EnrollmentId");
+
+                    b.ToTable("EnrollmentPayments");
                 });
 
             modelBuilder.Entity("RBACSIX.Models.ExamResult", b =>
@@ -453,6 +534,87 @@ namespace RBACSIX.Migrations
                         .IsUnique();
 
                     b.ToTable("ExamResults");
+                });
+
+            modelBuilder.Entity("RBACSIX.Models.LeaveRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EnrollmentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("RequestedByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("ReviewedByStaffUserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ReviewedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EnrollmentId", "Status", "StartDate", "EndDate");
+
+                    b.ToTable("LeaveRequests");
+                });
+
+            modelBuilder.Entity("RBACSIX.Models.ParentProfile", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("ParentProfiles");
+                });
+
+            modelBuilder.Entity("RBACSIX.Models.ParentStudentLink", b =>
+                {
+                    b.Property<string>("ParentUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("StudentProfileId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ParentUserId", "StudentProfileId");
+
+                    b.HasIndex("StudentProfileId");
+
+                    b.ToTable("ParentStudentLinks");
                 });
 
             modelBuilder.Entity("RBACSIX.Models.ScheduledClass", b =>
@@ -839,6 +1001,28 @@ namespace RBACSIX.Migrations
                     b.Navigation("Student");
                 });
 
+            modelBuilder.Entity("RBACSIX.Models.EnrollmentCharge", b =>
+                {
+                    b.HasOne("RBACSIX.Models.Enrollment", "Enrollment")
+                        .WithMany("Charges")
+                        .HasForeignKey("EnrollmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Enrollment");
+                });
+
+            modelBuilder.Entity("RBACSIX.Models.EnrollmentPayment", b =>
+                {
+                    b.HasOne("RBACSIX.Models.Enrollment", "Enrollment")
+                        .WithMany("Payments")
+                        .HasForeignKey("EnrollmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Enrollment");
+                });
+
             modelBuilder.Entity("RBACSIX.Models.ExamResult", b =>
                 {
                     b.HasOne("RBACSIX.Models.Enrollment", "Enrollment")
@@ -856,6 +1040,47 @@ namespace RBACSIX.Migrations
                     b.Navigation("Enrollment");
 
                     b.Navigation("RecordedByUser");
+                });
+
+            modelBuilder.Entity("RBACSIX.Models.LeaveRequest", b =>
+                {
+                    b.HasOne("RBACSIX.Models.Enrollment", "Enrollment")
+                        .WithMany("LeaveRequests")
+                        .HasForeignKey("EnrollmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Enrollment");
+                });
+
+            modelBuilder.Entity("RBACSIX.Models.ParentProfile", b =>
+                {
+                    b.HasOne("RBACSIX.Models.Users", "User")
+                        .WithOne("ParentProfile")
+                        .HasForeignKey("RBACSIX.Models.ParentProfile", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("RBACSIX.Models.ParentStudentLink", b =>
+                {
+                    b.HasOne("RBACSIX.Models.ParentProfile", "Parent")
+                        .WithMany("StudentLinks")
+                        .HasForeignKey("ParentUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RBACSIX.Models.StudentProfile", "Student")
+                        .WithMany("ParentLinks")
+                        .HasForeignKey("StudentProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Parent");
+
+                    b.Navigation("Student");
                 });
 
             modelBuilder.Entity("RBACSIX.Models.ScheduledClass", b =>
@@ -937,16 +1162,31 @@ namespace RBACSIX.Migrations
                 {
                     b.Navigation("AttendanceRecords");
 
+                    b.Navigation("Charges");
+
+                    b.Navigation("LeaveRequests");
+
+                    b.Navigation("Payments");
+
                     b.Navigation("Results");
+                });
+
+            modelBuilder.Entity("RBACSIX.Models.ParentProfile", b =>
+                {
+                    b.Navigation("StudentLinks");
                 });
 
             modelBuilder.Entity("RBACSIX.Models.StudentProfile", b =>
                 {
                     b.Navigation("Enrollments");
+
+                    b.Navigation("ParentLinks");
                 });
 
             modelBuilder.Entity("RBACSIX.Models.Users", b =>
                 {
+                    b.Navigation("ParentProfile");
+
                     b.Navigation("StaffProfile");
 
                     b.Navigation("StudentProfile");

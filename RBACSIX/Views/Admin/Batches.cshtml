@@ -13,13 +13,21 @@
 }
 <div class="table-responsive">
     <table class="table table-striped align-middle">
-        <thead><tr><th>Batch</th><th>Course</th><th>Staff</th><th>Schedule</th><th>Dates</th><th>Students</th></tr></thead>
+        <thead><tr><th>Batch</th><th>Course</th><th>Staff</th><th>Schedule</th><th>Dates</th><th>Capacity</th><th>Students</th><th></th></tr></thead>
         <tbody>
         @foreach (var batch in Model)
         {
             <tr>
                 <td>@batch.Name</td><td>@batch.CourseName</td><td>@(batch.StaffName ?? "Unassigned")</td>
-                <td>@batch.ScheduleDescription</td><td>@batch.StartDate.ToString("d") – @batch.EndDate.ToString("d")</td><td>@batch.StudentCount</td>
+                <td>@batch.ScheduleDescription</td><td>@batch.StartDate.ToString("d") – @batch.EndDate.ToString("d")</td>
+                <td>@(batch.Capacity?.ToString() ?? "Unlimited")</td><td>@batch.StudentCount</td>
+                <td class="text-nowrap">
+                    <a class="btn btn-sm btn-outline-primary" asp-action="EditBatch" asp-route-id="@batch.Id">Edit</a>
+                    <form asp-action="DeleteBatch" method="post" class="d-inline" onsubmit="return confirm('Permanently delete this batch and all enrollments, attendance, results, fees, materials, and leave requests? Zoom meetings will be canceled first.');">
+                        <input type="hidden" name="id" value="@batch.Id" />
+                        <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                    </form>
+                </td>
             </tr>
         }
         </tbody>

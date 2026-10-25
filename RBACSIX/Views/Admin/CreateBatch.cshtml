@@ -10,6 +10,7 @@
     <div class="mb-3"><label asp-for="CourseId" class="form-label">Course</label><select asp-for="CourseId" asp-items="Model.Courses" class="form-select"><option value="">Select a course</option></select><span asp-validation-for="CourseId" class="text-danger"></span></div>
     <div class="mb-3"><label asp-for="StaffUserId" class="form-label">Assigned staff member</label><select asp-for="StaffUserId" asp-items="Model.StaffMembers" class="form-select"><option value="">Unassigned</option></select><span asp-validation-for="StaffUserId" class="text-danger"></span></div>
     <div class="mb-3"><label asp-for="ScheduleDescription" class="form-label">Schedule (days and times)</label><input asp-for="ScheduleDescription" class="form-control" placeholder="Mon, Wed, Fri — 4:00 PM" /><span asp-validation-for="ScheduleDescription" class="text-danger"></span></div>
+    <div class="mb-3"><label asp-for="Capacity" class="form-label">Maximum capacity (leave blank for unlimited)</label><input asp-for="Capacity" class="form-control" min="1" type="number" /><span asp-validation-for="Capacity" class="text-danger"></span></div>
     <div class="row">
         <div class="col mb-3"><label asp-for="StartDate" class="form-label"></label><input asp-for="StartDate" class="form-control" /><span asp-validation-for="StartDate" class="text-danger"></span></div>
         <div class="col mb-3"><label asp-for="EndDate" class="form-label"></label><input asp-for="EndDate" class="form-control" /><span asp-validation-for="EndDate" class="text-danger"></span></div>

@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using RBACSIX.Data;
 using RBACSIX.Models;
 using RBACSIX.Models.ViewModels;
+using RBACSIX.Services;
+using System.Data;
 
 namespace RBACSIX.Controllers;
 
@@ -15,15 +17,21 @@ public class AdminController : Controller
     private readonly AppDbContext _db;
     private readonly UserManager<Users> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
+    private readonly IZoomMeetingService _zoomMeetingService;
+    private readonly ILogger<AdminController> _logger;
 
     public AdminController(
         AppDbContext db,
         UserManager<Users> userManager,
-        RoleManager<IdentityRole> roleManager)
+        RoleManager<IdentityRole> roleManager,
+        IZoomMeetingService zoomMeetingService,
+        ILogger<AdminController> logger)
     {
         _db = db;
         _userManager = userManager;
         _roleManager = roleManager;
+        _zoomMeetingService = zoomMeetingService;
+        _logger = logger;
     }
 
     public async Task<IActionResult> Index()
@@ -90,9 +98,14 @@ public class AdminController : Controller
         return RedirectToAction(nameof(GlobalAnnouncements));
     }
 
-    public async Task<IActionResult> Students()
+    public async Task<IActionResult> Students(string? searchName)
     {
-        var students = await _db.StudentProfiles
+        searchName = searchName?.Trim();
+        var query = _db.StudentProfiles.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(searchName))
+            query = query.Where(profile => profile.FullName.Contains(searchName));
+
+        var students = await query
             .Include(profile => profile.User)
             .OrderBy(profile => profile.FullName)
             .Select(profile => new PersonSummaryViewModel
@@ -104,7 +117,7 @@ public class AdminController : Controller
                 Details = profile.GuardianName
             })
             .ToListAsync();
-        return View(students);
+        return View(new AdminStudentsViewModel { SearchName = searchName, Students = students });
     }
 
     [HttpGet]
@@ -235,6 +248,7 @@ public class AdminController : Controller
                 Id = course.Id,
                 Name = course.Name,
                 Description = course.Description,
+                DefaultFee = course.DefaultFee,
                 IsActive = course.IsActive
             })
             .ToListAsync();
@@ -255,10 +269,66 @@ public class AdminController : Controller
         {
             Name = model.Name.Trim(),
             Description = model.Description?.Trim(),
+            DefaultFee = model.DefaultFee,
             IsActive = model.IsActive
         });
         await _db.SaveChangesAsync();
         TempData["Message"] = "Course created.";
+        return RedirectToAction(nameof(Courses));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> EditCourse(int id)
+    {
+        var course = await _db.Courses.FindAsync(id);
+        return course is null
+            ? NotFound()
+            : View(new CourseViewModel
+            {
+                Id = course.Id,
+                Name = course.Name,
+                Description = course.Description,
+                DefaultFee = course.DefaultFee,
+                IsActive = course.IsActive
+            });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditCourse(CourseViewModel model)
+    {
+        var course = await _db.Courses.FindAsync(model.Id);
+        if (course is null)
+            return NotFound();
+        if (!ModelState.IsValid)
+            return View(model);
+
+        course.Name = model.Name.Trim();
+        course.Description = model.Description?.Trim();
+        course.DefaultFee = model.DefaultFee;
+        course.IsActive = model.IsActive;
+        await _db.SaveChangesAsync();
+        TempData["Message"] = "Course updated. Enrollments without individual fee overrides use the new course fee.";
+        return RedirectToAction(nameof(Courses));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteCourse(int id)
+    {
+        var course = await _db.Courses
+            .Include(item => item.Batches)
+                .ThenInclude(batch => batch.ScheduledClasses)
+            .SingleOrDefaultAsync(item => item.Id == id);
+        if (course is null)
+            return NotFound();
+        if (!await CancelZoomMeetingsAsync(course.Batches.SelectMany(batch => batch.ScheduledClasses)
+                .Select(scheduledClass => scheduledClass.ZoomMeetingId)))
+            return RedirectToAction(nameof(Courses));
+
+        _db.Courses.Remove(course);
+        await _db.SaveChangesAsync();
+        TempData["Message"] = "Course and all linked batch records were deleted.";
         return RedirectToAction(nameof(Courses));
     }
 
@@ -280,7 +350,8 @@ public class AdminController : Controller
                 ScheduleDescription = batch.ScheduleDescription ?? string.Empty,
                 StartDate = batch.StartDate,
                 EndDate = batch.EndDate,
-                StudentCount = batch.Enrollments.Count
+                StudentCount = batch.Enrollments.Count,
+                Capacity = batch.Capacity
             })
             .ToListAsync();
         return View(batches);
@@ -298,15 +369,7 @@ public class AdminController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateBatch(BatchViewModel model)
     {
-        if (model.EndDate.Date < model.StartDate.Date)
-            ModelState.AddModelError(nameof(model.EndDate), "End date must be on or after the start date.");
-
-        if (!await _db.Courses.AnyAsync(course => course.Id == model.CourseId && course.IsActive))
-            ModelState.AddModelError(nameof(model.CourseId), "Select an active course.");
-
-        if (!string.IsNullOrEmpty(model.StaffUserId) &&
-            !await _db.StaffProfiles.AnyAsync(profile => profile.UserId == model.StaffUserId))
-            ModelState.AddModelError(nameof(model.StaffUserId), "Select a valid staff member.");
+        await ValidateBatchModelAsync(model);
 
         if (!ModelState.IsValid)
         {
@@ -321,10 +384,81 @@ public class AdminController : Controller
             StaffUserId = model.StaffUserId,
             StartDate = model.StartDate.Date,
             EndDate = model.EndDate.Date,
-            ScheduleDescription = model.ScheduleDescription?.Trim()
+            ScheduleDescription = model.ScheduleDescription?.Trim(),
+            Capacity = model.Capacity
         });
         await _db.SaveChangesAsync();
         TempData["Message"] = "Batch created.";
+        return RedirectToAction(nameof(Batches));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> EditBatch(int id)
+    {
+        var batch = await _db.Batches.FindAsync(id);
+        if (batch is null)
+            return NotFound();
+
+        var model = new BatchViewModel
+        {
+            Id = batch.Id,
+            Name = batch.Name,
+            CourseId = batch.CourseId,
+            StaffUserId = batch.StaffUserId,
+            StartDate = batch.StartDate,
+            EndDate = batch.EndDate,
+            ScheduleDescription = batch.ScheduleDescription,
+            Capacity = batch.Capacity
+        };
+        await PopulateBatchOptionsAsync(model);
+        return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditBatch(BatchViewModel model)
+    {
+        var batch = await _db.Batches.FindAsync(model.Id);
+        if (batch is null)
+            return NotFound();
+        await ValidateBatchModelAsync(model);
+        if (model.Capacity.HasValue &&
+            await _db.Enrollments.CountAsync(enrollment => enrollment.BatchId == batch.Id) > model.Capacity.Value)
+            ModelState.AddModelError(nameof(model.Capacity), "Capacity cannot be lower than the current enrollment count.");
+
+        if (!ModelState.IsValid)
+        {
+            await PopulateBatchOptionsAsync(model);
+            return View(model);
+        }
+
+        batch.Name = model.Name.Trim();
+        batch.CourseId = model.CourseId;
+        batch.StaffUserId = model.StaffUserId;
+        batch.StartDate = model.StartDate.Date;
+        batch.EndDate = model.EndDate.Date;
+        batch.ScheduleDescription = model.ScheduleDescription?.Trim();
+        batch.Capacity = model.Capacity;
+        await _db.SaveChangesAsync();
+        TempData["Message"] = "Batch updated.";
+        return RedirectToAction(nameof(Batches));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteBatch(int id)
+    {
+        var batch = await _db.Batches
+            .Include(item => item.ScheduledClasses)
+            .SingleOrDefaultAsync(item => item.Id == id);
+        if (batch is null)
+            return NotFound();
+        if (!await CancelZoomMeetingsAsync(batch.ScheduledClasses.Select(scheduledClass => scheduledClass.ZoomMeetingId)))
+            return RedirectToAction(nameof(Batches));
+
+        _db.Batches.Remove(batch);
+        await _db.SaveChangesAsync();
+        TempData["Message"] = "Batch and all linked records were deleted.";
         return RedirectToAction(nameof(Batches));
     }
 
@@ -334,6 +468,10 @@ public class AdminController : Controller
             .Include(profile => profile.Enrollments)
                 .ThenInclude(enrollment => enrollment.Batch)
                     .ThenInclude(batch => batch.Course)
+            .Include(profile => profile.Enrollments)
+                .ThenInclude(enrollment => enrollment.Charges)
+            .Include(profile => profile.Enrollments)
+                .ThenInclude(enrollment => enrollment.Payments)
             .SingleOrDefaultAsync(profile => profile.Id == studentId);
         if (student is null)
             return NotFound();
@@ -347,7 +485,13 @@ public class AdminController : Controller
                 EnrollmentId = enrollment.Id,
                 BatchId = enrollment.BatchId,
                 BatchName = enrollment.Batch.Name,
-                CourseName = enrollment.Batch.Course.Name
+                CourseName = enrollment.Batch.Course.Name,
+                TuitionFee = enrollment.FeeOverride ?? enrollment.Batch.Course.DefaultFee,
+                MiscellaneousCharges = enrollment.Charges.Sum(charge => charge.Amount),
+                Payments = enrollment.Payments.Sum(payment => payment.Amount),
+                Balance = (enrollment.FeeOverride ?? enrollment.Batch.Course.DefaultFee) +
+                          enrollment.Charges.Sum(charge => charge.Amount) -
+                          enrollment.Payments.Sum(payment => payment.Amount)
             }).ToList()
         };
         await PopulateEnrollmentOptionsAsync(model);
@@ -362,39 +506,52 @@ public class AdminController : Controller
         if (student is null)
             return NotFound();
 
-        var batchExists = await _db.Batches.AnyAsync(batch => batch.Id == model.BatchId);
-        if (!batchExists)
+        await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        var batch = await _db.Batches
+            .Include(item => item.Course)
+            .SingleOrDefaultAsync(item => item.Id == model.BatchId);
+        if (batch is null)
+        {
             ModelState.AddModelError(nameof(model.BatchId), "Select a valid batch.");
+        }
+        else
+        {
+            var alreadyEnrolled = await _db.Enrollments
+                .AnyAsync(enrollment => enrollment.StudentProfileId == student.Id && enrollment.BatchId == batch.Id);
+            if (alreadyEnrolled)
+                ModelState.AddModelError(nameof(model.BatchId), "This student is already enrolled in that batch.");
 
-        var alreadyEnrolled = await _db.Enrollments
-            .AnyAsync(enrollment => enrollment.StudentProfileId == model.StudentProfileId &&
-                                    enrollment.BatchId == model.BatchId);
-        if (alreadyEnrolled)
-            ModelState.AddModelError(nameof(model.BatchId), "This student is already enrolled in that batch.");
+            var enrollmentCount = await _db.Enrollments.CountAsync(enrollment => enrollment.BatchId == batch.Id);
+            if (batch.Capacity.HasValue && enrollmentCount >= batch.Capacity.Value)
+                ModelState.AddModelError(nameof(model.BatchId), "This batch is full.");
+        }
 
         if (!ModelState.IsValid)
         {
+            await transaction.RollbackAsync();
             model.StudentName = student.FullName;
+            model.ErrorMessage = string.Join(" ", ModelState.Values.SelectMany(value => value.Errors).Select(error => error.ErrorMessage));
             await PopulateEnrollmentOptionsAsync(model);
-            model.EnrolledBatches = await _db.Enrollments
-                .Where(enrollment => enrollment.StudentProfileId == student.Id)
-                .Select(enrollment => new EnrolledBatchViewModel
-                {
-                    EnrollmentId = enrollment.Id,
-                    BatchId = enrollment.BatchId,
-                    BatchName = enrollment.Batch.Name,
-                    CourseName = enrollment.Batch.Course.Name
-                })
-                .ToListAsync();
+            await PopulateEnrolledBatchesAsync(model, student.Id);
             return View("Enrollments", model);
         }
 
         _db.Enrollments.Add(new Enrollment
         {
-            StudentProfileId = model.StudentProfileId,
-            BatchId = model.BatchId
+            StudentProfileId = student.Id,
+            BatchId = batch!.Id
         });
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        catch (DbUpdateException)
+        {
+            await transaction.RollbackAsync();
+            TempData["Message"] = "Enrollment could not be saved. The batch may have filled; refresh and try again.";
+            return RedirectToAction(nameof(Enrollments), new { studentId = student.Id });
+        }
         TempData["Message"] = "Student enrolled in the batch.";
         return RedirectToAction(nameof(Enrollments), new { studentId = student.Id });
     }
@@ -408,10 +565,278 @@ public class AdminController : Controller
             return NotFound();
 
         var studentId = enrollment.StudentProfileId;
+        if (await _db.EnrollmentCharges.AnyAsync(charge => charge.EnrollmentId == id) ||
+            await _db.EnrollmentPayments.AnyAsync(payment => payment.EnrollmentId == id))
+        {
+            TempData["Message"] = "This enrollment has financial history and cannot be removed individually. Keep the ledger intact or delete its course/batch if removal is required.";
+            return RedirectToAction(nameof(Enrollments), new { studentId });
+        }
+
         _db.Enrollments.Remove(enrollment);
         await _db.SaveChangesAsync();
         TempData["Message"] = "Enrollment removed.";
         return RedirectToAction(nameof(Enrollments), new { studentId });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> EnrollmentFees(int enrollmentId)
+    {
+        var enrollment = await _db.Enrollments
+            .Include(item => item.Student)
+            .Include(item => item.Batch)
+                .ThenInclude(batch => batch.Course)
+            .Include(item => item.Charges)
+            .Include(item => item.Payments)
+            .SingleOrDefaultAsync(item => item.Id == enrollmentId);
+        if (enrollment is null)
+            return NotFound();
+
+        var tuition = enrollment.FeeOverride ?? enrollment.Batch.Course.DefaultFee;
+        var charges = enrollment.Charges.Sum(charge => charge.Amount);
+        var payments = enrollment.Payments.Sum(payment => payment.Amount);
+        return View(new EnrollmentFeeViewModel
+        {
+            EnrollmentId = enrollment.Id,
+            StudentProfileId = enrollment.StudentProfileId,
+            StudentName = enrollment.Student.FullName,
+            BatchName = enrollment.Batch.Name,
+            CourseName = enrollment.Batch.Course.Name,
+            DefaultFee = enrollment.Batch.Course.DefaultFee,
+            FeeOverride = enrollment.FeeOverride,
+            EffectiveTuition = tuition,
+            MiscellaneousCharges = charges,
+            Payments = payments,
+            Balance = tuition + charges - payments,
+            Charges = enrollment.Charges.OrderByDescending(charge => charge.ChargedUtc)
+                .Select(charge => new EnrollmentChargeSummaryViewModel
+                {
+                    Description = charge.Description,
+                    Amount = charge.Amount,
+                    ChargedUtc = charge.ChargedUtc
+                }).ToList(),
+            PaymentHistory = enrollment.Payments.OrderByDescending(payment => payment.PaymentDate)
+                .Select(payment => new EnrollmentPaymentSummaryViewModel
+                {
+                    Amount = payment.Amount,
+                    PaymentDate = payment.PaymentDate,
+                    Notes = payment.Notes
+                }).ToList()
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditEnrollmentFee(EditEnrollmentFeeViewModel model)
+    {
+        var enrollment = await _db.Enrollments
+            .Include(item => item.Batch)
+            .ThenInclude(batch => batch.Course)
+            .SingleOrDefaultAsync(item => item.Id == model.EnrollmentId);
+        if (enrollment is null)
+            return NotFound();
+        if (!ModelState.IsValid)
+        {
+            TempData["Message"] = "Enter a tuition fee of zero or greater.";
+            return RedirectToAction(nameof(EnrollmentFees), new { enrollmentId = model.EnrollmentId });
+        }
+
+        enrollment.FeeOverride = model.FeeOverride;
+        await _db.SaveChangesAsync();
+        TempData["Message"] = model.FeeOverride.HasValue
+            ? "Student-specific tuition fee saved."
+            : "Student now uses the current course default tuition fee.";
+        return RedirectToAction(nameof(EnrollmentFees), new { enrollmentId = model.EnrollmentId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddEnrollmentCharge(AddEnrollmentChargeViewModel model)
+    {
+        if (!ModelState.IsValid || !await _db.Enrollments.AnyAsync(item => item.Id == model.EnrollmentId))
+        {
+            TempData["Message"] = "Enter a valid miscellaneous charge.";
+            return RedirectToAction(nameof(EnrollmentFees), new { enrollmentId = model.EnrollmentId });
+        }
+
+        _db.EnrollmentCharges.Add(new EnrollmentCharge
+        {
+            EnrollmentId = model.EnrollmentId,
+            Description = model.Description.Trim(),
+            Amount = model.Amount,
+            CreatedByAdminUserId = _userManager.GetUserId(User)!,
+            ChargedUtc = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+        TempData["Message"] = "Miscellaneous charge added.";
+        return RedirectToAction(nameof(EnrollmentFees), new { enrollmentId = model.EnrollmentId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RecordEnrollmentPayment(RecordEnrollmentPaymentViewModel model)
+    {
+        await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        var enrollment = await _db.Enrollments
+            .Include(item => item.Batch)
+                .ThenInclude(batch => batch.Course)
+            .Include(item => item.Charges)
+            .Include(item => item.Payments)
+            .SingleOrDefaultAsync(item => item.Id == model.EnrollmentId);
+        if (enrollment is null)
+            return NotFound();
+        var balance = (enrollment.FeeOverride ?? enrollment.Batch.Course.DefaultFee) +
+                      enrollment.Charges.Sum(charge => charge.Amount) -
+                      enrollment.Payments.Sum(payment => payment.Amount);
+        if (!ModelState.IsValid || model.Amount > balance)
+        {
+            await transaction.RollbackAsync();
+            TempData["Message"] = $"Payment must be positive and no greater than the current balance ({balance:C}).";
+            return RedirectToAction(nameof(EnrollmentFees), new { enrollmentId = model.EnrollmentId });
+        }
+
+        _db.EnrollmentPayments.Add(new EnrollmentPayment
+        {
+            EnrollmentId = enrollment.Id,
+            Amount = model.Amount,
+            PaymentDate = model.PaymentDate.Date,
+            Notes = model.Notes?.Trim(),
+            ReceivedByAdminUserId = _userManager.GetUserId(User)!,
+            CreatedUtc = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        TempData["Message"] = "Payment recorded.";
+        return RedirectToAction(nameof(EnrollmentFees), new { enrollmentId = model.EnrollmentId });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Parents()
+    {
+        var parents = await _db.ParentProfiles
+            .OrderBy(profile => profile.FullName)
+            .Select(profile => new ParentSummaryViewModel
+            {
+                UserId = profile.UserId,
+                FullName = profile.FullName,
+                Email = profile.User.Email ?? string.Empty,
+                LinkedStudentCount = profile.StudentLinks.Count
+            })
+            .ToListAsync();
+        return View(parents);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> CreateParent()
+    {
+        var model = new CreateParentViewModel();
+        await PopulateParentStudentsAsync(model);
+        return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateParent(CreateParentViewModel model)
+    {
+        var validStudentIds = await _db.StudentProfiles
+            .Where(student => model.StudentProfileIds.Contains(student.Id))
+            .Select(student => student.Id)
+            .ToListAsync();
+        if (validStudentIds.Count == 0 || validStudentIds.Count != model.StudentProfileIds.Distinct().Count())
+            ModelState.AddModelError(nameof(model.StudentProfileIds), "Select at least one valid student.");
+        if (await _userManager.FindByEmailAsync(model.Email) is not null)
+            ModelState.AddModelError(nameof(model.Email), "An account with this email already exists.");
+        if (!ModelState.IsValid)
+        {
+            await PopulateParentStudentsAsync(model);
+            return View(model);
+        }
+
+        var user = new Users
+        {
+            UserName = model.Email,
+            Email = model.Email,
+            PhoneNumber = model.PhoneNumber,
+            LockoutEnabled = true
+        };
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        var createResult = await _userManager.CreateAsync(user, model.Password);
+        if (!createResult.Succeeded)
+        {
+            AddIdentityErrors(createResult);
+            await PopulateParentStudentsAsync(model);
+            return View(model);
+        }
+        var roleResult = await _userManager.AddToRoleAsync(user, "Parent");
+        if (!roleResult.Succeeded)
+        {
+            await _userManager.DeleteAsync(user);
+            AddIdentityErrors(roleResult);
+            await PopulateParentStudentsAsync(model);
+            return View(model);
+        }
+
+        _db.ParentProfiles.Add(new ParentProfile { UserId = user.Id, FullName = model.FullName.Trim() });
+        foreach (var studentProfileId in validStudentIds)
+        {
+            _db.ParentStudentLinks.Add(new ParentStudentLink
+            {
+                ParentUserId = user.Id,
+                StudentProfileId = studentProfileId
+            });
+        }
+        await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        TempData["Message"] = "Parent account created and linked to selected students.";
+        return RedirectToAction(nameof(Parents));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ParentLinks(string parentUserId)
+    {
+        var parent = await _db.ParentProfiles
+            .Include(profile => profile.StudentLinks)
+            .SingleOrDefaultAsync(profile => profile.UserId == parentUserId);
+        if (parent is null)
+            return NotFound();
+        var model = new ParentLinksViewModel
+        {
+            ParentUserId = parent.UserId,
+            ParentName = parent.FullName,
+            StudentProfileIds = parent.StudentLinks.Select(link => link.StudentProfileId).ToList()
+        };
+        await PopulateParentStudentsAsync(model);
+        return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ParentLinks(ParentLinksViewModel model)
+    {
+        var parent = await _db.ParentProfiles
+            .Include(profile => profile.StudentLinks)
+            .SingleOrDefaultAsync(profile => profile.UserId == model.ParentUserId);
+        if (parent is null)
+            return NotFound();
+        var selectedIds = model.StudentProfileIds.Distinct().ToList();
+        var validIds = await _db.StudentProfiles
+            .Where(student => selectedIds.Contains(student.Id))
+            .Select(student => student.Id)
+            .ToListAsync();
+        if (selectedIds.Count != validIds.Count)
+            ModelState.AddModelError(nameof(model.StudentProfileIds), "One or more selected students do not exist.");
+        if (!ModelState.IsValid)
+        {
+            model.ParentName = parent.FullName;
+            await PopulateParentStudentsAsync(model);
+            return View(model);
+        }
+
+        _db.ParentStudentLinks.RemoveRange(parent.StudentLinks);
+        foreach (var studentId in selectedIds)
+            _db.ParentStudentLinks.Add(new ParentStudentLink { ParentUserId = parent.UserId, StudentProfileId = studentId });
+        await _db.SaveChangesAsync();
+        TempData["Message"] = "Parent-child links updated.";
+        return RedirectToAction(nameof(Parents));
     }
 
     [HttpGet]
@@ -459,7 +884,7 @@ public class AdminController : Controller
         if (role is null)
             return NotFound();
 
-        if (role.Name is "Admin" or "Staff" or "Student")
+        if (role.Name is "Admin" or "Staff" or "Student" or "Parent")
         {
             TempData["Message"] = "Built-in coaching roles cannot be deleted.";
             return RedirectToAction(nameof(ListRoles));
@@ -500,8 +925,78 @@ public class AdminController : Controller
         model.AvailableBatches = await _db.Batches
             .Where(batch => !enrolledIds.Contains(batch.Id))
             .OrderBy(batch => batch.Name)
-            .Select(batch => new SelectListItem($"{batch.Name} - {batch.Course.Name}", batch.Id.ToString()))
+            .Select(batch => new SelectListItem(
+                batch.Capacity.HasValue
+                    ? $"{batch.Name} - {batch.Course.Name} ({batch.Enrollments.Count}/{batch.Capacity})"
+                    : $"{batch.Name} - {batch.Course.Name}",
+                batch.Id.ToString()))
             .ToListAsync();
+    }
+
+    private async Task PopulateEnrolledBatchesAsync(EnrollStudentViewModel model, int studentId)
+    {
+        model.EnrolledBatches = await _db.Enrollments
+            .Where(enrollment => enrollment.StudentProfileId == studentId)
+            .Select(enrollment => new EnrolledBatchViewModel
+            {
+                EnrollmentId = enrollment.Id,
+                BatchId = enrollment.BatchId,
+                BatchName = enrollment.Batch.Name,
+                CourseName = enrollment.Batch.Course.Name,
+                TuitionFee = enrollment.FeeOverride ?? enrollment.Batch.Course.DefaultFee,
+                MiscellaneousCharges = enrollment.Charges.Sum(charge => charge.Amount),
+                Payments = enrollment.Payments.Sum(payment => payment.Amount),
+                Balance = (enrollment.FeeOverride ?? enrollment.Batch.Course.DefaultFee) +
+                          enrollment.Charges.Sum(charge => charge.Amount) -
+                          enrollment.Payments.Sum(payment => payment.Amount)
+            })
+            .ToListAsync();
+    }
+
+    private async Task PopulateParentStudentsAsync(CreateParentViewModel model)
+    {
+        model.Students = await _db.StudentProfiles
+            .OrderBy(student => student.FullName)
+            .Select(student => new SelectListItem(student.FullName, student.Id.ToString()))
+            .ToListAsync();
+    }
+
+    private async Task PopulateParentStudentsAsync(ParentLinksViewModel model)
+    {
+        model.Students = await _db.StudentProfiles
+            .OrderBy(student => student.FullName)
+            .Select(student => new SelectListItem(student.FullName, student.Id.ToString()))
+            .ToListAsync();
+    }
+
+    private async Task ValidateBatchModelAsync(BatchViewModel model)
+    {
+        if (model.EndDate.Date < model.StartDate.Date)
+            ModelState.AddModelError(nameof(model.EndDate), "End date must be on or after the start date.");
+        if (!await _db.Courses.AnyAsync(course => course.Id == model.CourseId && course.IsActive))
+            ModelState.AddModelError(nameof(model.CourseId), "Select an active course.");
+        if (!string.IsNullOrEmpty(model.StaffUserId) &&
+            !await _db.StaffProfiles.AnyAsync(profile => profile.UserId == model.StaffUserId))
+            ModelState.AddModelError(nameof(model.StaffUserId), "Select a valid staff member.");
+    }
+
+    private async Task<bool> CancelZoomMeetingsAsync(IEnumerable<string> meetingIds)
+    {
+        foreach (var meetingId in meetingIds.Distinct(StringComparer.Ordinal))
+        {
+            try
+            {
+                await _zoomMeetingService.DeleteMeetingAsync(meetingId, HttpContext.RequestAborted);
+            }
+            catch (ZoomMeetingException exception)
+            {
+                _logger.LogError(exception, "Could not cancel Zoom meeting {MeetingId}; retaining related course/batch records.", meetingId);
+                TempData["Message"] = $"Zoom meeting {meetingId} could not be canceled. No database records were deleted; retry after resolving the Zoom error.";
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void AddIdentityErrors(IdentityResult result)

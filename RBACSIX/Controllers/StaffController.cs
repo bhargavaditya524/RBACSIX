@@ -637,6 +637,79 @@ public class StaffController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> LeaveRequests()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var model = new LeaveRequestsViewModel
+        {
+            CanReview = true,
+            PageTitle = "Leave requests for my batches",
+            Requests = await _db.LeaveRequests
+                .Where(request => request.Enrollment.Batch.StaffUserId == userId)
+                .OrderBy(request => request.Status == "Pending" ? 0 : 1)
+                .ThenByDescending(request => request.CreatedUtc)
+                .Select(request => new LeaveRequestItemViewModel
+                {
+                    Id = request.Id,
+                    EnrollmentId = request.EnrollmentId,
+                    StudentName = request.Enrollment.Student.FullName,
+                    BatchName = request.Enrollment.Batch.Name,
+                    StartDate = request.StartDate,
+                    EndDate = request.EndDate,
+                    Reason = request.Reason,
+                    Status = request.Status,
+                    RequestedByName = _db.StudentProfiles
+                        .Where(profile => profile.UserId == request.RequestedByUserId)
+                        .Select(profile => profile.FullName)
+                        .FirstOrDefault() ??
+                        _db.ParentProfiles
+                            .Where(profile => profile.UserId == request.RequestedByUserId)
+                            .Select(profile => profile.FullName)
+                            .FirstOrDefault() ?? "Unknown user",
+                    ReviewNote = request.ReviewNote,
+                    CreatedUtc = request.CreatedUtc
+                })
+                .ToListAsync()
+        };
+        return View("~/Views/Shared/LeaveRequests.cshtml", model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReviewLeaveRequest(ReviewLeaveRequestViewModel model)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var request = await _db.LeaveRequests
+            .Include(item => item.Enrollment)
+                .ThenInclude(enrollment => enrollment.Batch)
+            .SingleOrDefaultAsync(item =>
+                item.Id == model.LeaveRequestId &&
+                item.Enrollment.Batch.StaffUserId == userId);
+        if (request is null)
+            return NotFound();
+        if (request.Status != "Pending")
+        {
+            TempData["ErrorMessage"] = "This leave request has already been reviewed.";
+            return RedirectToAction(nameof(LeaveRequests));
+        }
+        if (model.Decision is not ("Approved" or "Rejected"))
+            ModelState.AddModelError(nameof(model.Decision), "Select approve or reject.");
+        if (!ModelState.IsValid)
+        {
+            TempData["ErrorMessage"] = "The leave decision was invalid.";
+            return RedirectToAction(nameof(LeaveRequests));
+        }
+
+        request.Status = model.Decision;
+        request.ReviewedByStaffUserId = userId;
+        request.ReviewedUtc = DateTime.UtcNow;
+        request.ReviewNote = model.ReviewNote?.Trim();
+        await _db.SaveChangesAsync();
+        TempData["Message"] = $"Leave request {model.Decision.ToLowerInvariant()}.";
+        return RedirectToAction(nameof(LeaveRequests));
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Results(int batchId)
     {
         var batch = await GetAssignedBatches(User.FindFirstValue(ClaimTypes.NameIdentifier))

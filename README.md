@@ -21,11 +21,12 @@
 
 ## Coaching Center Workflows
 
-The portal uses ASP.NET Core Identity accounts linked to student or staff profiles. The seeded roles are `Admin`, `Staff`, and `Student`.
+The portal uses ASP.NET Core Identity accounts linked to student, staff, or parent profiles. The seeded roles are `Admin`, `Staff`, `Student`, and `Parent`.
 
-- **Admin:** create student and staff accounts, courses, and batches; assign staff to batches; enroll students; and manage non-built-in roles.
-- **Staff:** view assigned batches, manage batch study materials and assignments, grade submissions, post batch announcements, record attendance/results, and schedule Zoom classes.
-- **Student:** view enrolled batch materials and Zoom classes, submit assignments, review grades and feedback, and read batch/global announcements.
+- **Admin:** create student, staff, and parent accounts; link parents to children; edit/reassign/delete courses and batches; set batch capacity; search students by name; enroll students; and manage each enrollment's tuition, miscellaneous charges, and payments.
+- **Staff:** view assigned batches, manage batch study materials and assignments, grade submissions, post batch announcements, record attendance/results, schedule Zoom classes, and approve or reject leave requests for assigned batches.
+- **Student:** view enrolled batch materials, Zoom classes, attendance, results, and fee balances; submit assignments; review grades and feedback; read batch/global announcements; and request leave.
+- **Parent:** view read-only attendance (with approved leave excluded), results, and fees for explicitly linked children, and request leave on their behalf.
 - **Admin:** manage coaching accounts and batches, publish global announcements visible to every signed-in role.
 - **Shared:** sign in and role-aware navigation. Controllers enforce role checks, and student records are loaded only through the signed-in account's linked student profile.
 
@@ -34,7 +35,11 @@ The portal uses ASP.NET Core Identity accounts linked to student or staff profil
 1. Configure `ConnectionStrings:DefaultConnection` for SQL Server.
 2. Apply migrations with `dotnet ef database update --project RBACSIX/RBACSIX.csproj`.
 3. Run the app and open `/Account/SetupAdmin` (or use the first-time setup link on the sign-in page) to create the first administrator. That setup page returns 404 after an administrator exists.
-4. Sign in as the administrator to create courses, batches, student/staff accounts, and enrollments.
+4. Sign in as the administrator to create courses, batches, student/staff/parent accounts, and enrollments. Parent access is granted by an Admin-created account with one or more explicitly linked students.
+
+Batch capacity is optional; a blank value means unlimited. Enrollment is rejected once the configured capacity is reached. Course default tuition applies to enrollments unless the Admin sets a student-specific override. Miscellaneous charges and payments are tracked per enrollment and visible as a remaining balance to the student and linked parent. The Admin can permanently delete a course or batch; associated Zoom meetings must be canceled successfully before database records are deleted.
+
+Students and Parents can submit date-range leave requests for enrolled batches. Assigned Staff approve or reject the requests. Approved leave dates are excluded from attendance totals and percentages.
 
 The coaching migration keeps existing Identity account rows and removes the old EF inheritance discriminator column while transitioning the Identity context to the custom `Users` type. Existing accounts remain available for login; legacy student/staff accounts are not automatically assigned new profiles, so migrate those profiles before using the coaching dashboards.
 
