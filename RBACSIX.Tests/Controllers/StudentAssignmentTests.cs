@@ -1,9 +1,13 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using RBACSIX.Controllers;
 using RBACSIX.Data;
 using RBACSIX.Models;
@@ -94,6 +98,7 @@ public class StudentAssignmentTests
     {
         return new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options);
     }
 
@@ -137,6 +142,7 @@ public class StudentAssignmentTests
         };
         return new StudentController(
             db,
+            CreateUserManager(db),
             TimeZoneInfo.Utc,
             storage,
             NullLogger<StudentController>.Instance)
@@ -144,6 +150,20 @@ public class StudentAssignmentTests
             ControllerContext = new ControllerContext { HttpContext = httpContext },
             TempData = new TempDataDictionary(httpContext, new StubTempDataProvider())
         };
+    }
+
+    private static UserManager<Users> CreateUserManager(AppDbContext db)
+    {
+        return new UserManager<Users>(
+            new UserStore<Users, IdentityRole, AppDbContext>(db),
+            Options.Create(new IdentityOptions()),
+            new PasswordHasher<Users>(),
+            [new UserValidator<Users>()],
+            [new PasswordValidator<Users>()],
+            new UpperInvariantLookupNormalizer(),
+            new IdentityErrorDescriber(),
+            null!,
+            NullLogger<UserManager<Users>>.Instance);
     }
 
     private static IFormFile CreateFile(string name)

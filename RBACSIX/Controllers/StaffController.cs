@@ -6,10 +6,11 @@ using RBACSIX.Data;
 using RBACSIX.Models;
 using RBACSIX.Models.ViewModels;
 using RBACSIX.Services;
+using RBACSIX.Authorization;
 
 namespace RBACSIX.Controllers;
 
-[Authorize(Roles = "Staff")]
+[Authorize(Policy = "ApprovedStaff")]
 public class StaffController : Controller
 {
     private readonly AppDbContext _db;

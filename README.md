@@ -23,9 +23,9 @@
 
 The portal uses ASP.NET Core Identity accounts linked to student, staff, or parent profiles. The seeded roles are `Admin`, `Staff`, `Student`, and `Parent`.
 
-- **Admin:** create student, staff, and parent accounts; link parents to children; edit/reassign/delete courses and batches; set batch capacity; search students by name; enroll students; and manage each enrollment's tuition, miscellaneous charges, and payments.
-- **Staff:** view assigned batches, manage batch study materials and assignments, grade submissions, post batch announcements, record attendance/results, schedule Zoom classes, and approve or reject leave requests for assigned batches.
-- **Student:** view enrolled batch materials, Zoom classes, attendance, results, and fee balances; submit assignments; review grades and feedback; read batch/global announcements; and request leave.
+- **Admin:** create Student, Staff, Parent, and additional Admin accounts; approve Staff registrations; link Parents to children; edit/reassign/delete courses and batches; set batch capacity; search students by name; enroll students; review course/batch requests; manage each enrollment's tuition, miscellaneous charges, and payments; and view enrollment, fee, and attendance reports.
+- **Staff:** self-register subject to Admin approval; view assigned batches, manage batch study materials and assignments, grade submissions, post batch announcements, record attendance/results, schedule Zoom classes, approve or reject leave requests for assigned batches, and view assigned-batch attendance/results reports.
+- **Student:** self-register and sign in immediately; view enrolled batch materials, Zoom classes, attendance, results, and fee balances; submit assignments; review grades and feedback; read batch/global announcements; request leave or additional course/batch enrollments; register a linked Parent login; and view personal attendance/results/fee charts.
 - **Parent:** view read-only attendance (with approved leave excluded), results, and fees for explicitly linked children, and request leave on their behalf.
 - **Admin:** manage coaching accounts and batches, publish global announcements visible to every signed-in role.
 - **Shared:** sign in and role-aware navigation. Controllers enforce role checks, and student records are loaded only through the signed-in account's linked student profile.
@@ -44,6 +44,14 @@ Students and Parents can submit date-range leave requests for enrolled batches. 
 The coaching migration keeps existing Identity account rows and removes the old EF inheritance discriminator column while transitioning the Identity context to the custom `Users` type. Existing accounts remain available for login; legacy student/staff accounts are not automatically assigned new profiles, so migrate those profiles before using the coaching dashboards.
 
 Apply all schema changes with `dotnet ef database update --project .\RBACSIX\RBACSIX.csproj`.
+
+### Registration, enrollment requests, and reports
+
+Students can register from the sign-in page and are signed in immediately. Staff can also self-register, but their Staff features remain blocked until an Admin approves the account from **Staff approvals**. Existing Admin-created Student and Staff accounts continue to work. Only the initial setup or an authenticated Admin can create Admin accounts; public registration never accepts a role selection. A Student can create a Parent login and link it to their own profile immediately; they should securely share the Parent's credentials.
+
+Students can request another active course/batch from **Course/batch requests**. The request does not enroll them. Admins review requests from the dashboard or **Enrollment requests**; approval checks that the Student is not already enrolled, that the course is active, and that batch capacity has not been reached. A request that cannot be approved because the batch is full is rejected with a note and no enrollment is created.
+
+**Reports** are role-scoped: Admins see enrollment, payment/balance, and attendance overviews; Staff see attendance and results only for currently assigned batches; Students see only their own attendance, results, and fee balances. Charts include a data table alternative and require no external chart service.
 
 ### Zoom class setup
 

@@ -41,8 +41,191 @@ public class AdminController : Controller
             StudentCount = await _db.StudentProfiles.CountAsync(),
             StaffCount = await _db.StaffProfiles.CountAsync(),
             CourseCount = await _db.Courses.CountAsync(),
-            BatchCount = await _db.Batches.CountAsync()
+            BatchCount = await _db.Batches.CountAsync(),
+            PendingStaffCount = await _db.StaffProfiles.CountAsync(profile => !profile.IsApproved),
+            PendingEnrollmentRequestCount = await _db.EnrollmentRequests.CountAsync(request => request.Status == "Pending")
         });
+    }
+
+    [HttpGet]
+    public IActionResult CreateAdmin() => View(new CreateAdminViewModel());
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateAdmin(CreateAdminViewModel model)
+    {
+        if (!ModelState.IsValid)
+            return View(model);
+        if (await _userManager.FindByEmailAsync(model.Email) is not null)
+        {
+            ModelState.AddModelError(nameof(model.Email), "An account with this email already exists.");
+            return View(model);
+        }
+
+        await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        var user = new Users
+        {
+            UserName = model.Email,
+            Email = model.Email,
+            PhoneNumber = model.PhoneNumber,
+            LockoutEnabled = true
+        };
+        var createResult = await _userManager.CreateAsync(user, model.Password);
+        if (!createResult.Succeeded)
+        {
+            AddIdentityErrors(createResult);
+            return View(model);
+        }
+        var roleResult = await _userManager.AddToRoleAsync(user, "Admin");
+        if (!roleResult.Succeeded)
+        {
+            AddIdentityErrors(roleResult);
+            return View(model);
+        }
+        await transaction.CommitAsync();
+        TempData["Message"] = "Administrator account created.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> StaffApprovals()
+    {
+        var staff = await _db.StaffProfiles
+            .Include(profile => profile.User)
+            .OrderBy(profile => profile.FullName)
+            .Select(profile => new
+            {
+                profile.UserId,
+                profile.FullName,
+                Email = profile.User.Email ?? string.Empty,
+                profile.User.PhoneNumber,
+                profile.SubjectSpecialty,
+                profile.IsApproved
+            })
+            .ToListAsync();
+        return View(new StaffApprovalViewModel
+        {
+            PendingStaff = staff.Where(profile => !profile.IsApproved)
+                .Select(profile => new PersonSummaryViewModel
+                {
+                    ProfileId = 0,
+                    FullName = profile.FullName,
+                    Email = profile.Email,
+                    PhoneNumber = profile.PhoneNumber,
+                    Details = profile.SubjectSpecialty,
+                    UserId = profile.UserId
+                }).ToList(),
+            ApprovedStaff = staff.Where(profile => profile.IsApproved)
+                .Select(profile => new PersonSummaryViewModel
+                {
+                    FullName = profile.FullName,
+                    Email = profile.Email,
+                    PhoneNumber = profile.PhoneNumber,
+                    Details = profile.SubjectSpecialty
+                }).ToList()
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ApproveStaff(string userId)
+    {
+        var profile = await _db.StaffProfiles.SingleOrDefaultAsync(item => item.UserId == userId);
+        if (profile is null)
+            return NotFound();
+        profile.IsApproved = true;
+        await _db.SaveChangesAsync();
+        TempData["Message"] = $"Staff account for {profile.FullName} approved.";
+        return RedirectToAction(nameof(StaffApprovals));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> EnrollmentRequests()
+    {
+        return View(await BuildEnrollmentRequestsAsync());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReviewEnrollmentRequest(ReviewEnrollmentRequestViewModel model)
+    {
+        if (model.Decision is not ("Approved" or "Rejected"))
+        {
+            TempData["ErrorMessage"] = "Choose approve or reject.";
+            return RedirectToAction(nameof(EnrollmentRequests));
+        }
+
+        await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        var request = await _db.EnrollmentRequests
+            .Include(item => item.Batch)
+                .ThenInclude(batch => batch.Course)
+            .SingleOrDefaultAsync(item => item.Id == model.RequestId);
+        if (request is null)
+            return NotFound();
+        if (request.Status != "Pending")
+        {
+            TempData["ErrorMessage"] = "This request has already been reviewed.";
+            return RedirectToAction(nameof(EnrollmentRequests));
+        }
+
+        if (model.Decision == "Approved")
+        {
+            var alreadyEnrolled = await _db.Enrollments.AnyAsync(enrollment =>
+                enrollment.StudentProfileId == request.StudentProfileId &&
+                enrollment.BatchId == request.BatchId);
+            if (!request.Batch.Course.IsActive)
+            {
+                request.Status = "Rejected";
+                request.ReviewNote = "This course is no longer active.";
+            }
+            else if (alreadyEnrolled)
+            {
+                request.Status = "Rejected";
+                request.ReviewNote = "The student is already enrolled in this batch.";
+            }
+            else
+            {
+                var enrollmentCount = await _db.Enrollments.CountAsync(enrollment =>
+                    enrollment.BatchId == request.BatchId);
+                if (request.Batch.Capacity.HasValue && enrollmentCount >= request.Batch.Capacity.Value)
+                {
+                    request.Status = "Rejected";
+                    request.ReviewNote = "The batch is full; the student was not enrolled.";
+                }
+                else
+                {
+                    _db.Enrollments.Add(new Enrollment
+                    {
+                        StudentProfileId = request.StudentProfileId,
+                        BatchId = request.BatchId
+                    });
+                    request.Status = "Approved";
+                    request.ReviewNote = model.ReviewNote?.Trim();
+                }
+            }
+        }
+        else
+        {
+            request.Status = "Rejected";
+            request.ReviewNote = model.ReviewNote?.Trim();
+        }
+
+        request.ReviewedByAdminUserId = _userManager.GetUserId(User);
+        request.ReviewedUtc = DateTime.UtcNow;
+        try
+        {
+            await _db.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        catch (DbUpdateException exception)
+        {
+            await transaction.RollbackAsync();
+            _logger.LogWarning(exception, "Could not review enrollment request {RequestId}.", request.Id);
+            TempData["ErrorMessage"] = "The request could not be updated. Refresh the list and try again.";
+            return RedirectToAction(nameof(EnrollmentRequests));
+        }
+        TempData["Message"] = $"Enrollment request {request.Status.ToLowerInvariant()}.";
+        return RedirectToAction(nameof(EnrollmentRequests));
     }
 
     [HttpGet]
@@ -182,7 +365,8 @@ public class AdminController : Controller
                 FullName = profile.FullName,
                 Email = profile.User.Email ?? string.Empty,
                 PhoneNumber = profile.User.PhoneNumber,
-                Details = profile.SubjectSpecialty
+                Details = profile.SubjectSpecialty,
+                IsApproved = profile.IsApproved
             })
             .ToListAsync();
         return View(staff);
@@ -913,6 +1097,34 @@ public class AdminController : Controller
         model.StaffMembers = await _db.StaffProfiles
             .OrderBy(profile => profile.FullName)
             .Select(profile => new SelectListItem(profile.FullName, profile.UserId))
+            .ToListAsync();
+    }
+
+    private async Task<List<EnrollmentRequestViewModel>> BuildEnrollmentRequestsAsync()
+    {
+        return await _db.EnrollmentRequests
+            .Include(request => request.Student)
+                .ThenInclude(student => student.User)
+            .Include(request => request.Batch)
+                .ThenInclude(batch => batch.Course)
+            .OrderBy(request => request.Status == "Pending" ? 0 : 1)
+            .ThenByDescending(request => request.RequestedUtc)
+            .Select(request => new EnrollmentRequestViewModel
+            {
+                Id = request.Id,
+                StudentProfileId = request.StudentProfileId,
+                StudentName = request.Student.FullName,
+                StudentEmail = request.Student.User.Email ?? string.Empty,
+                BatchId = request.BatchId,
+                BatchName = request.Batch.Name,
+                CourseName = request.Batch.Course.Name,
+                Message = request.Message,
+                Status = request.Status,
+                RequestedUtc = request.RequestedUtc,
+                ReviewNote = request.ReviewNote,
+                Capacity = request.Batch.Capacity,
+                EnrollmentCount = request.Batch.Enrollments.Count
+            })
             .ToListAsync();
     }
 

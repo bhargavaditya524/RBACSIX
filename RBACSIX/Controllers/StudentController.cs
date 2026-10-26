@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RBACSIX.Data;
@@ -13,17 +14,20 @@ namespace RBACSIX.Controllers;
 public class StudentController : Controller
 {
     private readonly AppDbContext _db;
+    private readonly UserManager<Users> _userManager;
     private readonly TimeZoneInfo _coachingTimeZone;
     private readonly IPrivateFileStorage _fileStorage;
     private readonly ILogger<StudentController> _logger;
 
     public StudentController(
         AppDbContext db,
+        UserManager<Users> userManager,
         TimeZoneInfo coachingTimeZone,
         IPrivateFileStorage fileStorage,
         ILogger<StudentController> logger)
     {
         _db = db;
+        _userManager = userManager;
         _coachingTimeZone = coachingTimeZone;
         _fileStorage = fileStorage;
         _logger = logger;
@@ -108,6 +112,163 @@ public class StudentController : Controller
         }
 
         return View(student);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> EnrollmentRequests()
+    {
+        var studentId = await GetStudentProfileIdAsync();
+        if (studentId is null)
+            return NotFound();
+
+        var requestedBatchIds = await _db.EnrollmentRequests
+            .Where(request => request.StudentProfileId == studentId &&
+                              request.Status == "Pending")
+            .Select(request => request.BatchId)
+            .ToListAsync();
+        var enrolledBatchIds = await _db.Enrollments
+            .Where(enrollment => enrollment.StudentProfileId == studentId)
+            .Select(enrollment => enrollment.BatchId)
+            .ToListAsync();
+        return View(new StudentEnrollmentRequestsViewModel
+        {
+            AvailableBatches = await _db.Batches
+                .Where(batch => batch.Course.IsActive &&
+                                !enrolledBatchIds.Contains(batch.Id) &&
+                                !requestedBatchIds.Contains(batch.Id))
+                .OrderBy(batch => batch.Course.Name)
+                .ThenBy(batch => batch.Name)
+                .Select(batch => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem(
+                    batch.Capacity.HasValue && batch.Enrollments.Count >= batch.Capacity.Value
+                        ? $"{batch.Course.Name} — {batch.Name} (currently full)"
+                        : $"{batch.Course.Name} — {batch.Name}",
+                    batch.Id.ToString()))
+                .ToListAsync(),
+            Requests = await _db.EnrollmentRequests
+                .Where(request => request.StudentProfileId == studentId)
+                .OrderByDescending(request => request.RequestedUtc)
+                .Select(request => new EnrollmentRequestViewModel
+                {
+                    Id = request.Id,
+                    BatchId = request.BatchId,
+                    StudentProfileId = request.StudentProfileId,
+                    StudentName = request.Student.FullName,
+                    BatchName = request.Batch.Name,
+                    CourseName = request.Batch.Course.Name,
+                    Message = request.Message,
+                    Status = request.Status,
+                    RequestedUtc = request.RequestedUtc,
+                    ReviewNote = request.ReviewNote,
+                    Capacity = request.Batch.Capacity,
+                    EnrollmentCount = request.Batch.Enrollments.Count
+                }).ToListAsync()
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RequestEnrollment(CreateEnrollmentRequestViewModel model)
+    {
+        var studentId = await GetStudentProfileIdAsync();
+        if (studentId is null)
+            return NotFound();
+
+        await using var transaction = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+        var batchIsAvailable = await _db.Batches.AnyAsync(batch =>
+            batch.Id == model.BatchId && batch.Course.IsActive);
+        if (!batchIsAvailable)
+            return NotFound();
+        if (await _db.Enrollments.AnyAsync(enrollment =>
+                enrollment.StudentProfileId == studentId && enrollment.BatchId == model.BatchId))
+            ModelState.AddModelError(nameof(model.BatchId), "You are already enrolled in this batch.");
+        if (await _db.EnrollmentRequests.AnyAsync(request =>
+                request.StudentProfileId == studentId &&
+                request.BatchId == model.BatchId &&
+                request.Status == "Pending"))
+            ModelState.AddModelError(nameof(model.BatchId), "A request for this batch is already pending.");
+        if (!ModelState.IsValid)
+        {
+            await transaction.RollbackAsync();
+            TempData["ErrorMessage"] = string.Join(" ", ModelState.Values
+                .SelectMany(value => value.Errors)
+                .Select(error => error.ErrorMessage));
+            return RedirectToAction(nameof(EnrollmentRequests));
+        }
+
+        _db.EnrollmentRequests.Add(new EnrollmentRequest
+        {
+            StudentProfileId = studentId.Value,
+            BatchId = model.BatchId,
+            Message = model.Message?.Trim(),
+            Status = "Pending",
+            RequestedUtc = DateTime.UtcNow
+        });
+        try
+        {
+            await _db.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        catch (DbUpdateException exception)
+        {
+            await transaction.RollbackAsync();
+            _logger.LogWarning(exception, "Could not save an enrollment request for student {StudentProfileId} and batch {BatchId}.", studentId.Value, model.BatchId);
+            TempData["ErrorMessage"] = "The request could not be saved. It may already be pending; refresh and try again.";
+            return RedirectToAction(nameof(EnrollmentRequests));
+        }
+        TempData["Message"] = "Your enrollment request was sent to the administrator.";
+        return RedirectToAction(nameof(EnrollmentRequests));
+    }
+
+    [HttpGet]
+    public IActionResult RegisterParent() => View(new RegisterParentViewModel());
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RegisterParent(RegisterParentViewModel model)
+    {
+        var student = await GetStudentProfileAsync();
+        if (student is null)
+            return NotFound();
+        if (!ModelState.IsValid)
+            return View(model);
+        if (await _userManager.FindByEmailAsync(model.Email) is not null)
+        {
+            ModelState.AddModelError(nameof(model.Email),
+                "An account with this email already exists. Contact an administrator to link an existing Parent account.");
+            return View(model);
+        }
+
+        await using var transaction = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+        var user = new Users
+        {
+            UserName = model.Email,
+            Email = model.Email,
+            PhoneNumber = model.PhoneNumber,
+            LockoutEnabled = true
+        };
+        var created = await _userManager.CreateAsync(user, model.Password);
+        if (!created.Succeeded)
+        {
+            AddIdentityErrors(created);
+            return View(model);
+        }
+        var assigned = await _userManager.AddToRoleAsync(user, "Parent");
+        if (!assigned.Succeeded)
+        {
+            AddIdentityErrors(assigned);
+            return View(model);
+        }
+
+        _db.ParentProfiles.Add(new ParentProfile { UserId = user.Id, FullName = model.FullName.Trim() });
+        _db.ParentStudentLinks.Add(new ParentStudentLink
+        {
+            ParentUserId = user.Id,
+            StudentProfileId = student.Id
+        });
+        await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        TempData["Message"] = "Parent account created and linked to your profile.";
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpGet]
@@ -417,5 +578,26 @@ public class StudentController : Controller
             _logger.LogError(exception, "Could not remove replaced/orphaned upload {StoredFileName}.", storedFileName);
             return false;
         }
+    }
+
+    private Task<StudentProfile?> GetStudentProfileAsync()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return _db.StudentProfiles.SingleOrDefaultAsync(profile => profile.UserId == userId);
+    }
+
+    private async Task<int?> GetStudentProfileIdAsync()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return await _db.StudentProfiles
+            .Where(profile => profile.UserId == userId)
+            .Select(profile => (int?)profile.Id)
+            .SingleOrDefaultAsync();
+    }
+
+    private void AddIdentityErrors(IdentityResult result)
+    {
+        foreach (var error in result.Errors)
+            ModelState.AddModelError(string.Empty, error.Description);
     }
 }

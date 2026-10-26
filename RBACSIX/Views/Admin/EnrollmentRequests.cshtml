@@ -1,0 +1,53 @@
+@model IEnumerable<RBACSIX.Models.ViewModels.EnrollmentRequestViewModel>
+@{
+    ViewData["Title"] = "Enrollment requests";
+}
+
+<h1>Student course/batch requests</h1>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-info">@message</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+@if (!Model.Any())
+{
+    <p class="text-muted">No enrollment requests have been submitted.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead><tr><th>Student</th><th>Course / batch</th><th>Message</th><th>Capacity</th><th>Status</th><th>Review</th></tr></thead>
+            <tbody>
+            @foreach (var request in Model)
+            {
+                <tr>
+                    <td>@request.StudentName<br /><small class="text-muted">@request.StudentEmail</small></td>
+                    <td>@request.CourseName<br /><small>@request.BatchName</small></td>
+                    <td>@(request.Message ?? "—")<br /><small class="text-muted">@request.RequestedUtc.ToLocalTime().ToString("g")</small></td>
+                    <td>@request.EnrollmentCount / @(request.Capacity?.ToString() ?? "Unlimited")</td>
+                    <td>@request.Status</td>
+                    <td>
+                        @if (request.Status == "Pending")
+                        {
+                            <form asp-action="ReviewEnrollmentRequest" method="post" class="d-flex flex-wrap gap-1">
+                                <input type="hidden" name="RequestId" value="@request.Id" />
+                                <input name="ReviewNote" class="form-control form-control-sm" maxlength="1000" placeholder="Optional note" />
+                                <button type="submit" name="Decision" value="Approved" class="btn btn-sm btn-success">Approve</button>
+                                <button type="submit" name="Decision" value="Rejected" class="btn btn-sm btn-outline-danger">Reject</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span>@request.ReviewNote</span>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

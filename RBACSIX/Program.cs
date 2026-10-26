@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using RBACSIX.Data;
 using RBACSIX.Models;
 using RBACSIX.Services;
+using RBACSIX.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +20,12 @@ builder.Services.AddIdentity<Users, IdentityRole>(options =>
 })
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("ApprovedStaff", policy =>
+        policy.RequireRole("Staff").AddRequirements(new ApprovedStaffRequirement()));
+});
+builder.Services.AddScoped<IAuthorizationHandler, ApprovedStaffHandler>();
 builder.Services.Configure<ZoomOptions>(builder.Configuration.GetSection("Zoom"));
 builder.Services.AddHttpClient<IZoomMeetingService, ZoomMeetingService>();
 builder.Services.AddHostedService<ScheduledClassCleanupService>();

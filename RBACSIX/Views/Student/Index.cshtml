@@ -5,7 +5,12 @@
 
 <h1>Welcome, @Model.StudentName</h1>
 <p class="text-muted">Your coaching schedule, attendance, and exam results. Class times are shown in @Model.TimeZoneId.</p>
-<p><a class="btn btn-outline-primary" asp-action="LeaveRequests">Request or view leave</a></p>
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn btn-outline-primary" asp-action="LeaveRequests">Request or view leave</a>
+    <a class="btn btn-outline-primary" asp-action="EnrollmentRequests">Request another course/batch</a>
+    <a class="btn btn-outline-primary" asp-action="RegisterParent">Register a Parent</a>
+    <a class="btn btn-outline-dark" asp-controller="Reports" asp-action="Index">My reports</a>
+</div>
 
 @if (Model.Batches.Count == 0)
 {
