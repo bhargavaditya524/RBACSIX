@@ -14,6 +14,7 @@ namespace RBACSIX.Data
         public DbSet<Course> Courses => Set<Course>();
         public DbSet<Batch> Batches => Set<Batch>();
         public DbSet<Enrollment> Enrollments => Set<Enrollment>();
+        public DbSet<EnrollmentRequest> EnrollmentRequests => Set<EnrollmentRequest>();
         public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
         public DbSet<ExamResult> ExamResults => Set<ExamResult>();
         public DbSet<ScheduledClass> ScheduledClasses => Set<ScheduledClass>();
@@ -40,6 +41,10 @@ namespace RBACSIX.Data
                 .HasOne(profile => profile.User)
                 .WithOne(user => user.StaffProfile)
                 .HasForeignKey<StaffProfile>(profile => profile.UserId);
+
+            builder.Entity<StaffProfile>()
+                .Property(profile => profile.IsApproved)
+                .HasDefaultValue(true);
 
             builder.Entity<ParentProfile>()
                 .HasKey(profile => profile.UserId);
@@ -71,6 +76,21 @@ namespace RBACSIX.Data
 
             builder.Entity<Enrollment>()
                 .HasIndex(enrollment => enrollment.BatchId);
+
+            builder.Entity<EnrollmentRequest>()
+                .HasIndex(request => new { request.StudentProfileId, request.BatchId, request.Status });
+
+            builder.Entity<EnrollmentRequest>()
+                .HasOne(request => request.Student)
+                .WithMany()
+                .HasForeignKey(request => request.StudentProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<EnrollmentRequest>()
+                .HasOne(request => request.Batch)
+                .WithMany()
+                .HasForeignKey(request => request.BatchId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             builder.Entity<Course>()
                 .Property(course => course.DefaultFee)

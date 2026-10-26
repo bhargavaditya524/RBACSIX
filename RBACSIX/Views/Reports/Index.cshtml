@@ -1,0 +1,75 @@
+@model RBACSIX.Models.ViewModels.ReportsViewModel
+@{
+    ViewData["Title"] = Model.PageTitle;
+}
+
+<h1>@Model.PageTitle</h1>
+<p class="text-muted">Reports are scoped to your role and authorized records.</p>
+<div class="row g-3 mb-4">
+@foreach (var metric in Model.Metrics)
+{
+    <div class="col-sm-6 col-xl-3">
+        <section class="card h-100">
+            <div class="card-body">
+                <div class="text-muted">@metric.Label</div>
+                <div class="h3 mb-0">@metric.Value</div>
+                @if (!string.IsNullOrWhiteSpace(metric.Description))
+                {
+                    <small class="text-muted">@metric.Description</small>
+                }
+            </div>
+        </section>
+    </div>
+}
+</div>
+@if (Model.Charts.Count == 0)
+{
+    <p class="text-muted">No report data is available yet.</p>
+}
+else
+{
+    <div class="row g-4">
+    @foreach (var chart in Model.Charts)
+    {
+        <div class="col-lg-6">
+            <section class="card h-100">
+                <div class="card-body">
+                    <h2 class="h5">@chart.Title</h2>
+                    @if (chart.Points.Count == 0)
+                    {
+                        <p class="text-muted mb-0">No data recorded yet.</p>
+                    }
+                    else
+                    {
+                        @foreach (var point in chart.Points)
+                        {
+                            var safeValue = Math.Clamp(point.Value, 0, chart.Maximum);
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between gap-2">
+                                    <span>@point.Label</span>
+                                    <strong>@point.Value.ToString("0.##") @chart.Unit</strong>
+                                </div>
+                                <progress class="w-100" max="@chart.Maximum" value="@safeValue" aria-label="@($"{chart.Title}: {point.Label}")">@point.Value</progress>
+                            </div>
+                        }
+                        <details>
+                            <summary>View chart data as a table</summary>
+                            <div class="table-responsive mt-2">
+                                <table class="table table-sm">
+                                    <thead><tr><th>Category</th><th>Value (@chart.Unit)</th></tr></thead>
+                                    <tbody>
+                                    @foreach (var point in chart.Points)
+                                    {
+                                        <tr><td>@point.Label</td><td>@point.Value.ToString("0.##")</td></tr>
+                                    }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </details>
+                    }
+                </div>
+            </section>
+        </div>
+    }
+    </div>
+}

@@ -102,10 +102,21 @@ public class AccountController : Controller
             return View(model);
         }
 
+        var authenticatedUser = await _userManager.FindByEmailAsync(model.Email);
+        if (authenticatedUser is not null &&
+            await _userManager.IsInRoleAsync(authenticatedUser, "Staff") &&
+            !await _db.StaffProfiles.AnyAsync(profile =>
+                profile.UserId == authenticatedUser.Id && profile.IsApproved))
+        {
+            await _signInManager.SignOutAsync();
+            ModelState.AddModelError(string.Empty, "Your Staff registration is awaiting Admin approval.");
+            return View(model);
+        }
+
         if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
             return Redirect(returnUrl);
 
-        var user = await _userManager.FindByEmailAsync(model.Email);
+        var user = authenticatedUser;
         if (user is null)
         {
             await _signInManager.SignOutAsync();
@@ -122,6 +133,104 @@ public class AccountController : Controller
             return RedirectToAction("Index", "Parent");
 
         return RedirectToAction("Index", "Home");
+    }
+
+    [AllowAnonymous]
+    [HttpGet]
+    public IActionResult RegisterStudent() => View(new StudentRegistrationViewModel());
+
+    [AllowAnonymous]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RegisterStudent(StudentRegistrationViewModel model)
+    {
+        if (!ModelState.IsValid)
+            return View(model);
+        if (await _userManager.FindByEmailAsync(model.Email) is not null)
+        {
+            ModelState.AddModelError(nameof(model.Email), "An account with this email already exists.");
+            return View(model);
+        }
+
+        await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        var user = new Users
+        {
+            UserName = model.Email,
+            Email = model.Email,
+            PhoneNumber = model.PhoneNumber,
+            LockoutEnabled = true
+        };
+        var created = await _userManager.CreateAsync(user, model.Password);
+        if (!created.Succeeded)
+        {
+            AddIdentityErrors(created);
+            return View(model);
+        }
+        var assigned = await _userManager.AddToRoleAsync(user, "Student");
+        if (!assigned.Succeeded)
+        {
+            AddIdentityErrors(assigned);
+            return View(model);
+        }
+        _db.StudentProfiles.Add(new StudentProfile
+        {
+            UserId = user.Id,
+            FullName = model.FullName.Trim(),
+            GuardianName = model.GuardianName?.Trim()
+        });
+        await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        await _signInManager.SignInAsync(user, isPersistent: false);
+        return RedirectToAction("Index", "Student");
+    }
+
+    [AllowAnonymous]
+    [HttpGet]
+    public IActionResult RegisterStaff() => View(new StaffRegistrationViewModel());
+
+    [AllowAnonymous]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RegisterStaff(StaffRegistrationViewModel model)
+    {
+        if (!ModelState.IsValid)
+            return View(model);
+        if (await _userManager.FindByEmailAsync(model.Email) is not null)
+        {
+            ModelState.AddModelError(nameof(model.Email), "An account with this email already exists.");
+            return View(model);
+        }
+
+        await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        var user = new Users
+        {
+            UserName = model.Email,
+            Email = model.Email,
+            PhoneNumber = model.PhoneNumber,
+            LockoutEnabled = true
+        };
+        var created = await _userManager.CreateAsync(user, model.Password);
+        if (!created.Succeeded)
+        {
+            AddIdentityErrors(created);
+            return View(model);
+        }
+        var assigned = await _userManager.AddToRoleAsync(user, "Staff");
+        if (!assigned.Succeeded)
+        {
+            AddIdentityErrors(assigned);
+            return View(model);
+        }
+        _db.StaffProfiles.Add(new StaffProfile
+        {
+            UserId = user.Id,
+            FullName = model.FullName.Trim(),
+            SubjectSpecialty = model.SubjectSpecialty?.Trim(),
+            IsApproved = false
+        });
+        await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        return View("StaffRegistrationPending");
     }
 
     [Authorize]

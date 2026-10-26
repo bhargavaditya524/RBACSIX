@@ -5,6 +5,10 @@
 
 <h1>Admin dashboard</h1>
 <p class="text-muted">Manage coaching center accounts, courses, and batches.</p>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-info">@message</div>
+}
 
 <div class="row g-3 mb-4">
     <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="text-muted">Students</div><div class="display-6">@Model.StudentCount</div></div></div></div>
@@ -18,5 +22,9 @@
     <a class="btn btn-outline-primary" asp-action="CreateStaff">Add staff</a>
     <a class="btn btn-outline-primary" asp-action="CreateCourse">Add course</a>
     <a class="btn btn-outline-primary" asp-action="CreateBatch">Add batch</a>
+    <a class="btn btn-outline-primary" asp-action="CreateAdmin">Add administrator</a>
+    <a class="btn btn-outline-secondary" asp-action="StaffApprovals">Staff approvals (@Model.PendingStaffCount)</a>
+    <a class="btn btn-outline-secondary" asp-action="EnrollmentRequests">Enrollment requests (@Model.PendingEnrollmentRequestCount)</a>
     <a class="btn btn-outline-secondary" asp-action="ListRoles">Manage roles</a>
+    <a class="btn btn-outline-dark" asp-controller="Reports" asp-action="Index">Reports</a>
 </div>

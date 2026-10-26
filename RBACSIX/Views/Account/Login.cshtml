@@ -28,6 +28,11 @@
         {
             <p class="mt-3 mb-0"><a asp-action="SetupAdmin">First-time setup: create the administrator account</a></p>
         }
+        else
+        {
+            <p class="mt-3 mb-0">New student? <a asp-action="RegisterStudent">Create a Student account</a></p>
+            <p class="mt-1 mb-0">Joining as Staff? <a asp-action="RegisterStaff">Register for Admin approval</a></p>
+        }
     </div>
 </div>
 @section Scripts { <partial name="_ValidationScriptsPartial" /> }

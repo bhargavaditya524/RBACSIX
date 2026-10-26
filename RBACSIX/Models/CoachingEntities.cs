@@ -57,6 +57,8 @@ public class StaffProfile
 
     [StringLength(120)]
     public string? SubjectSpecialty { get; set; }
+
+    public bool IsApproved { get; set; } = true;
 }
 
 public class Course
@@ -129,6 +131,33 @@ public class Enrollment
     public ICollection<EnrollmentCharge> Charges { get; set; } = new List<EnrollmentCharge>();
     public ICollection<EnrollmentPayment> Payments { get; set; } = new List<EnrollmentPayment>();
     public ICollection<LeaveRequest> LeaveRequests { get; set; } = new List<LeaveRequest>();
+}
+
+public class EnrollmentRequest
+{
+    public int Id { get; set; }
+
+    [Required]
+    public int StudentProfileId { get; set; }
+    public StudentProfile Student { get; set; } = null!;
+
+    [Required]
+    public int BatchId { get; set; }
+    public Batch Batch { get; set; } = null!;
+
+    [StringLength(2000)]
+    public string? Message { get; set; }
+
+    [Required, StringLength(20)]
+    public string Status { get; set; } = "Pending";
+
+    public DateTime RequestedUtc { get; set; } = DateTime.UtcNow;
+
+    public string? ReviewedByAdminUserId { get; set; }
+    public DateTime? ReviewedUtc { get; set; }
+
+    [StringLength(1000)]
+    public string? ReviewNote { get; set; }
 }
 
 public class AttendanceRecord

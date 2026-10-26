@@ -1,0 +1,18 @@
+@model RBACSIX.Models.ViewModels.RegisterParentViewModel
+@{
+    ViewData["Title"] = "Register parent";
+}
+
+<h1>Register your Parent or guardian</h1>
+<p class="text-muted">The account will be linked to your student profile immediately. Share the login credentials securely with your Parent.</p>
+<form asp-action="RegisterParent" method="post" class="col-lg-7">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="mb-3"><label asp-for="FullName" class="form-label"></label><input asp-for="FullName" class="form-control" autocomplete="name" /><span asp-validation-for="FullName" class="text-danger"></span></div>
+    <div class="mb-3"><label asp-for="Email" class="form-label"></label><input asp-for="Email" class="form-control" autocomplete="email" /><span asp-validation-for="Email" class="text-danger"></span></div>
+    <div class="mb-3"><label asp-for="PhoneNumber" class="form-label"></label><input asp-for="PhoneNumber" class="form-control" autocomplete="tel" /><span asp-validation-for="PhoneNumber" class="text-danger"></span></div>
+    <div class="mb-3"><label asp-for="Password" class="form-label">Parent password</label><input asp-for="Password" class="form-control" autocomplete="new-password" /><span asp-validation-for="Password" class="text-danger"></span></div>
+    <div class="mb-3"><label asp-for="ConfirmPassword" class="form-label"></label><input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" /><span asp-validation-for="ConfirmPassword" class="text-danger"></span></div>
+    <button type="submit" class="btn btn-primary">Create and link Parent account</button>
+    <a asp-action="Index" class="btn btn-link">Cancel</a>
+</form>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

@@ -13,12 +13,13 @@
 }
 <div class="table-responsive">
     <table class="table table-striped align-middle">
-        <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Specialty</th></tr></thead>
+        <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Specialty</th><th>Registration</th></tr></thead>
         <tbody>
         @foreach (var person in Model)
         {
-            <tr><td>@person.FullName</td><td>@person.Email</td><td>@person.PhoneNumber</td><td>@person.Details</td></tr>
+            <tr><td>@person.FullName</td><td>@person.Email</td><td>@person.PhoneNumber</td><td>@person.Details</td><td>@(person.IsApproved ? "Approved" : "Pending approval")</td></tr>
         }
         </tbody>
     </table>
 </div>
+<a class="btn btn-outline-secondary" asp-action="StaffApprovals">Review Staff registrations</a>

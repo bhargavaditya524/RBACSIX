@@ -26,9 +26,12 @@
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="Students">Students</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="Parents">Parents</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="Staff">Staff</a></li>
+                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="StaffApprovals">Staff approvals</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="Courses">Courses</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="Batches">Batches</a></li>
+                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="EnrollmentRequests">Enrollment requests</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="GlobalAnnouncements">Global announcements</a></li>
+                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Reports" asp-action="Index">Reports</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Announcements" asp-action="Index">Announcements</a></li>
                         }
                         else if (User.IsInRole("Staff"))
@@ -36,12 +39,16 @@
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Staff" asp-action="Index">My batches</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Announcements" asp-action="Index">Announcements</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Staff" asp-action="LeaveRequests">Leave requests</a></li>
+                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Reports" asp-action="Index">Reports</a></li>
                         }
                         else if (User.IsInRole("Student"))
                         {
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Student" asp-action="Index">My learning</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Student" asp-action="Learning">Materials &amp; assignments</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Student" asp-action="LeaveRequests">Leave requests</a></li>
+                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Student" asp-action="EnrollmentRequests">Course/batch requests</a></li>
+                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Student" asp-action="RegisterParent">Register parent</a></li>
+                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Reports" asp-action="Index">My reports</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Announcements" asp-action="Index">Announcements</a></li>
                         }
                         else if (User.IsInRole("Parent"))

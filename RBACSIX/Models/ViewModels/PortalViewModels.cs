@@ -60,11 +60,15 @@ public class AdminDashboardViewModel
     public int StaffCount { get; set; }
     public int CourseCount { get; set; }
     public int BatchCount { get; set; }
+    public int PendingStaffCount { get; set; }
+    public int PendingEnrollmentRequestCount { get; set; }
 }
 
 public class PersonSummaryViewModel
 {
     public int ProfileId { get; set; }
+    public string? UserId { get; set; }
+    public bool IsApproved { get; set; }
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string? PhoneNumber { get; set; }
@@ -533,6 +537,139 @@ public class CreateParentViewModel
     public string ConfirmPassword { get; set; } = string.Empty;
     public List<int> StudentProfileIds { get; set; } = new();
     public List<SelectListItem> Students { get; set; } = new();
+}
+
+public class StudentRegistrationViewModel
+{
+    [Required, StringLength(120)]
+    public string FullName { get; set; } = string.Empty;
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+    [Phone]
+    public string? PhoneNumber { get; set; }
+    [StringLength(120)]
+    public string? GuardianName { get; set; }
+    [Required, StringLength(100, MinimumLength = 8), DataType(DataType.Password)]
+    public string Password { get; set; } = string.Empty;
+    [Required, DataType(DataType.Password), Compare(nameof(Password))]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
+
+public class StaffRegistrationViewModel
+{
+    [Required, StringLength(120)]
+    public string FullName { get; set; } = string.Empty;
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+    [Phone]
+    public string? PhoneNumber { get; set; }
+    [StringLength(120)]
+    public string? SubjectSpecialty { get; set; }
+    [Required, StringLength(100, MinimumLength = 8), DataType(DataType.Password)]
+    public string Password { get; set; } = string.Empty;
+    [Required, DataType(DataType.Password), Compare(nameof(Password))]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
+
+public class RegisterParentViewModel
+{
+    [Required, StringLength(120)]
+    public string FullName { get; set; } = string.Empty;
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+    [Phone]
+    public string? PhoneNumber { get; set; }
+    [Required, StringLength(100, MinimumLength = 8), DataType(DataType.Password)]
+    public string Password { get; set; } = string.Empty;
+    [Required, DataType(DataType.Password), Compare(nameof(Password))]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
+
+public class CreateAdminViewModel
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+    [Phone]
+    public string? PhoneNumber { get; set; }
+    [Required, StringLength(100, MinimumLength = 8), DataType(DataType.Password)]
+    public string Password { get; set; } = string.Empty;
+    [Required, DataType(DataType.Password), Compare(nameof(Password))]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
+
+public class StaffApprovalViewModel
+{
+    public List<PersonSummaryViewModel> PendingStaff { get; set; } = new();
+    public List<PersonSummaryViewModel> ApprovedStaff { get; set; } = new();
+}
+
+public class EnrollmentRequestViewModel
+{
+    public int Id { get; set; }
+    public int BatchId { get; set; }
+    public int StudentProfileId { get; set; }
+    public string StudentName { get; set; } = string.Empty;
+    public string StudentEmail { get; set; } = string.Empty;
+    public string BatchName { get; set; } = string.Empty;
+    public string CourseName { get; set; } = string.Empty;
+    public string? Message { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public DateTime RequestedUtc { get; set; }
+    public string? ReviewNote { get; set; }
+    public int? Capacity { get; set; }
+    public int EnrollmentCount { get; set; }
+}
+
+public class StudentEnrollmentRequestsViewModel
+{
+    public List<SelectListItem> AvailableBatches { get; set; } = new();
+    public List<EnrollmentRequestViewModel> Requests { get; set; } = new();
+}
+
+public class CreateEnrollmentRequestViewModel
+{
+    [Range(1, int.MaxValue)]
+    public int BatchId { get; set; }
+    [StringLength(2000)]
+    public string? Message { get; set; }
+}
+
+public class ReviewEnrollmentRequestViewModel
+{
+    public int RequestId { get; set; }
+    [Required]
+    public string Decision { get; set; } = string.Empty;
+    [StringLength(1000)]
+    public string? ReviewNote { get; set; }
+}
+
+public class ReportsViewModel
+{
+    public string RoleName { get; set; } = string.Empty;
+    public string PageTitle { get; set; } = string.Empty;
+    public List<ReportMetricViewModel> Metrics { get; set; } = new();
+    public List<ReportChartViewModel> Charts { get; set; } = new();
+}
+
+public class ReportMetricViewModel
+{
+    public string Label { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+    public string? Description { get; set; }
+}
+
+public class ReportChartViewModel
+{
+    public string Title { get; set; } = string.Empty;
+    public string Unit { get; set; } = string.Empty;
+    public decimal Maximum { get; set; }
+    public List<ReportChartPointViewModel> Points { get; set; } = new();
+}
+
+public class ReportChartPointViewModel
+{
+    public string Label { get; set; } = string.Empty;
+    public decimal Value { get; set; }
 }
 
 public class ParentSummaryViewModel

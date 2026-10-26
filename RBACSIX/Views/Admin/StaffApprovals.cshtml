@@ -1,0 +1,44 @@
+@model RBACSIX.Models.ViewModels.StaffApprovalViewModel
+@{
+    ViewData["Title"] = "Staff approval";
+}
+
+<h1>Staff registration approvals</h1>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-info">@message</div>
+}
+<h2 class="h4">Pending approval</h2>
+@if (Model.PendingStaff.Count == 0)
+{
+    <p class="text-muted">No Staff registrations are waiting for approval.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Specialty</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var staff in Model.PendingStaff)
+            {
+                <tr>
+                    <td>@staff.FullName</td><td>@staff.Email</td><td>@staff.PhoneNumber</td><td>@staff.Details</td>
+                    <td>
+                        <form asp-action="ApproveStaff" method="post">
+                            <input type="hidden" name="userId" value="@staff.UserId" />
+                            <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+<h2 class="h4 mt-4">Approved Staff</h2>
+<ul>
+@foreach (var staff in Model.ApprovedStaff)
+{
+    <li>@staff.FullName (@staff.Email) — @(staff.Details ?? "No specialty listed")</li>
+}
+</ul>

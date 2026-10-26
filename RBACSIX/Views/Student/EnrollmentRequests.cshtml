@@ -1,0 +1,58 @@
+@model RBACSIX.Models.ViewModels.StudentEnrollmentRequestsViewModel
+@{
+    ViewData["Title"] = "Course and batch requests";
+}
+
+<h1>Request another course or batch</h1>
+<p class="text-muted">An Admin must approve your request. The request will be rejected if a batch has no available capacity when it is reviewed.</p>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-info">@message</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+@if (Model.AvailableBatches.Count == 0)
+{
+    <p class="text-muted">There are no additional active batches available to request.</p>
+}
+else
+{
+    <form asp-action="RequestEnrollment" method="post" class="col-lg-7 mb-4">
+        <div class="mb-3">
+            <label for="BatchId" class="form-label">Course and batch</label>
+            <select id="BatchId" name="BatchId" asp-items="Model.AvailableBatches" class="form-select" required>
+                <option value="">Select a course/batch</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="Message" class="form-label">Message to Admin (optional)</label>
+            <textarea id="Message" name="Message" class="form-control" maxlength="2000"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Send request</button>
+    </form>
+}
+<h2 class="h4">Your requests</h2>
+@if (Model.Requests.Count == 0)
+{
+    <p class="text-muted">You have not requested another course or batch yet.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead><tr><th>Course</th><th>Batch</th><th>Requested</th><th>Status</th><th>Admin note</th></tr></thead>
+            <tbody>
+            @foreach (var request in Model.Requests)
+            {
+                <tr>
+                    <td>@request.CourseName</td><td>@request.BatchName</td>
+                    <td>@request.RequestedUtc.ToLocalTime().ToString("g")</td>
+                    <td>@request.Status</td><td>@request.ReviewNote</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
