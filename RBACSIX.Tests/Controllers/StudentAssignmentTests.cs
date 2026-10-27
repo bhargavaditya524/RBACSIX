@@ -189,6 +189,9 @@ public class StudentAssignmentTests
                 "application/pdf"));
         }
 
+        public Task<StoredUpload> SaveQuizAnswerAsync(IFormFile file, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public FileStream OpenRead(string storedFileName) => throw new NotSupportedException();
 
         public Task DeleteAsync(string storedFileName, CancellationToken cancellationToken = default)

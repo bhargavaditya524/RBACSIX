@@ -137,6 +137,335 @@ public class StaffController : Controller
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateQuiz(CreateQuizViewModel model)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var batch = await GetAssignedBatches(userId)
+                .SingleOrDefaultAsync(item => item.Id == model.BatchId);
+            if (batch is null)
+                return NotFound();
+            if (!ModelState.IsValid)
+            {
+                TempData["ErrorMessage"] = "Enter a title and a timer between 1 and 480 minutes.";
+                return RedirectToAction(nameof(BatchLearning), new { batchId = model.BatchId });
+            }
+
+            var quiz = new Quiz
+            {
+                BatchId = batch.Id,
+                CreatedByStaffUserId = userId,
+                Title = model.Title.Trim(),
+                Instructions = model.Instructions?.Trim(),
+                DurationMinutes = model.DurationMinutes,
+                CreatedUtc = DateTime.UtcNow
+            };
+            _db.Quizzes.Add(quiz);
+            await _db.SaveChangesAsync();
+            TempData["Message"] = "Quiz created as a draft. Add questions, then publish it.";
+            return RedirectToAction(nameof(ManageQuiz), new { quizId = quiz.Id });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ManageQuiz(int quizId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var quiz = await _db.Quizzes
+                .Where(item => item.Id == quizId && item.Batch.StaffUserId == userId)
+                .Select(item => new StaffQuizManagementViewModel
+                {
+                    QuizId = item.Id,
+                    BatchId = item.BatchId,
+                    Title = item.Title,
+                    Instructions = item.Instructions,
+                    BatchName = item.Batch.Name,
+                    DurationMinutes = item.DurationMinutes,
+                    IsPublished = item.IsPublished,
+                    AttemptCount = item.Attempts.Count,
+                    TotalMarks = item.Questions.Sum(question => (decimal?)question.Marks) ?? 0,
+                    Questions = item.Questions
+                        .OrderBy(question => question.Order)
+                        .Select(question => new QuizQuestionSummaryViewModel
+                        {
+                            Id = question.Id,
+                            Order = question.Order,
+                            Prompt = question.Prompt,
+                            QuestionType = question.QuestionType,
+                            Marks = question.Marks,
+                            Options = question.Options
+                                .OrderBy(option => option.Order)
+                                .Select(option => option.Text)
+                                .ToList(),
+                            CorrectOption = question.Options
+                                .Where(option => option.IsCorrect)
+                                .Select(option => option.Text)
+                                .SingleOrDefault()
+                        })
+                        .ToList()
+                })
+                .SingleOrDefaultAsync();
+            return quiz is null ? NotFound() : View(quiz);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddQuizQuestion(CreateQuizQuestionViewModel model)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var quiz = await _db.Quizzes
+                .Include(item => item.Questions)
+                .SingleOrDefaultAsync(item =>
+                    item.Id == model.QuizId &&
+                    item.Batch.StaffUserId == userId);
+            if (quiz is null)
+                return NotFound();
+            if (quiz.IsPublished || await _db.QuizAttempts.AnyAsync(attempt => attempt.QuizId == quiz.Id))
+            {
+                TempData["ErrorMessage"] = "Questions cannot be changed after a quiz is published or attempted.";
+                return RedirectToAction(nameof(ManageQuiz), new { quizId = quiz.Id });
+            }
+
+            var questionType = model.QuestionType;
+            var isMultipleChoice = questionType == QuizQuestionTypes.MultipleChoice;
+            var isWritten = questionType == QuizQuestionTypes.Written;
+            var isFileUpload = questionType == QuizQuestionTypes.FileUpload;
+            if (!isMultipleChoice && !isWritten && !isFileUpload)
+                ModelState.AddModelError(nameof(model.QuestionType), "Choose a supported question type.");
+
+            var optionTexts = isMultipleChoice
+                ? (model.OptionsPerLine ?? string.Empty)
+                    .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Where(option => option.Length > 0)
+                    .ToList()
+                : [];
+            if (isMultipleChoice)
+            {
+                if (optionTexts.Count < 2)
+                    ModelState.AddModelError(nameof(model.OptionsPerLine), "Enter at least two options, one per line.");
+                if (!model.CorrectOptionNumber.HasValue ||
+                    model.CorrectOptionNumber.Value > optionTexts.Count)
+                    ModelState.AddModelError(nameof(model.CorrectOptionNumber), "Choose a correct option from the list.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                TempData["ErrorMessage"] = string.Join(" ", ModelState.Values
+                    .SelectMany(value => value.Errors)
+                    .Select(error => error.ErrorMessage));
+                return RedirectToAction(nameof(ManageQuiz), new { quizId = quiz.Id });
+            }
+
+            var question = new QuizQuestion
+            {
+                QuizId = quiz.Id,
+                Prompt = model.Prompt.Trim(),
+                QuestionType = questionType,
+                Marks = model.Marks,
+                Order = quiz.Questions.Count
+            };
+            for (var index = 0; index < optionTexts.Count; index++)
+            {
+                question.Options.Add(new QuizQuestionOption
+                {
+                    Text = optionTexts[index],
+                    Order = index,
+                    IsCorrect = index + 1 == model.CorrectOptionNumber
+                });
+            }
+
+            _db.QuizQuestions.Add(question);
+            await _db.SaveChangesAsync();
+            TempData["Message"] = "Question added.";
+            return RedirectToAction(nameof(ManageQuiz), new { quizId = quiz.Id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> PublishQuiz(int quizId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var quiz = await _db.Quizzes
+                .Include(item => item.Questions)
+                .SingleOrDefaultAsync(item =>
+                    item.Id == quizId &&
+                    item.Batch.StaffUserId == userId);
+            if (quiz is null)
+                return NotFound();
+            if (quiz.IsPublished)
+            {
+                TempData["Message"] = "This quiz is already published.";
+                return RedirectToAction(nameof(ManageQuiz), new { quizId });
+            }
+            if (quiz.Questions.Count == 0)
+            {
+                TempData["ErrorMessage"] = "Add at least one question before publishing.";
+                return RedirectToAction(nameof(ManageQuiz), new { quizId });
+            }
+
+            quiz.IsPublished = true;
+            await _db.SaveChangesAsync();
+            TempData["Message"] = "Quiz published for students in this batch.";
+            return RedirectToAction(nameof(ManageQuiz), new { quizId });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> QuizSubmissions(int quizId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var quiz = await _db.Quizzes
+                .Where(item => item.Id == quizId && item.Batch.StaffUserId == userId)
+                .Include(item => item.Questions)
+                .Include(item => item.Attempts)
+                    .ThenInclude(attempt => attempt.Student)
+                .Include(item => item.Attempts)
+                    .ThenInclude(attempt => attempt.Answers)
+                        .ThenInclude(answer => answer.Question)
+                .Include(item => item.Attempts)
+                    .ThenInclude(attempt => attempt.Answers)
+                        .ThenInclude(answer => answer.SelectedOption)
+                .SingleOrDefaultAsync();
+            if (quiz is null)
+                return NotFound();
+
+            return View(new StaffQuizAttemptsViewModel
+            {
+                QuizId = quiz.Id,
+                QuizTitle = quiz.Title,
+                TotalMarks = quiz.Questions.Sum(question => question.Marks),
+                Attempts = quiz.Attempts
+                    .OrderBy(attempt => attempt.Student.FullName)
+                    .Select(attempt => new StaffQuizAttemptSummaryViewModel
+                    {
+                        Id = attempt.Id,
+                        StudentName = attempt.Student.FullName,
+                        StartedUtc = attempt.StartedUtc,
+                        SubmittedUtc = attempt.SubmittedUtc ?? attempt.ExpiresUtc,
+                        TotalScore = attempt.TotalScore,
+                        GradedUtc = attempt.GradedUtc,
+                        Answers = quiz.Questions
+                            .OrderBy(question => question.Order)
+                            .Select(question =>
+                            {
+                                var answer = attempt.Answers.SingleOrDefault(item =>
+                                    item.QuizQuestionId == question.Id);
+                                return new StaffQuizAnswerSummaryViewModel
+                                {
+                                    Id = answer?.Id ?? 0,
+                                    Prompt = question.Prompt,
+                                    QuestionType = question.QuestionType,
+                                    Marks = question.Marks,
+                                    HasAnswer = answer is not null,
+                                    SelectedOption = answer?.SelectedOption?.Text,
+                                    WrittenResponse = answer?.WrittenResponse,
+                                    OriginalFileName = answer?.OriginalFileName,
+                                    Score = answer?.Score,
+                                    Feedback = answer?.Feedback
+                                };
+                            })
+                            .ToList()
+                    })
+                    .ToList()
+            });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> DownloadQuizAnswer(int answerId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var answer = await _db.QuizAnswers
+                .Where(item =>
+                    item.Id == answerId &&
+                    item.Attempt.SubmittedUtc != null &&
+                    item.Attempt.Quiz.Batch.StaffUserId == userId)
+                .Select(item => new { item.StoredFileName, item.OriginalFileName, item.ContentType })
+                .SingleOrDefaultAsync();
+            if (answer?.StoredFileName is null)
+                return NotFound();
+
+            try
+            {
+                return File(_fileStorage.OpenRead(answer.StoredFileName), answer.ContentType ?? "application/octet-stream",
+                    answer.OriginalFileName ?? "quiz-answer");
+            }
+            catch (FileNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogError(exception, "Could not read quiz answer {AnswerId}.", answerId);
+                return Problem("The quiz answer could not be downloaded.");
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GradeQuizAnswer(GradeQuizAnswerViewModel model)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var answer = await _db.QuizAnswers
+                .Include(item => item.Question)
+                .Include(item => item.Attempt)
+                    .ThenInclude(attempt => attempt.Quiz)
+                        .ThenInclude(quiz => quiz.Questions)
+                .Include(item => item.Attempt)
+                    .ThenInclude(attempt => attempt.Answers)
+                .SingleOrDefaultAsync(item =>
+                    item.Id == model.AnswerId &&
+                    item.Attempt.SubmittedUtc != null &&
+                    item.Attempt.Quiz.Batch.StaffUserId == userId);
+            if (answer is null)
+                return NotFound();
+            if (answer.Question.QuestionType == QuizQuestionTypes.MultipleChoice)
+                return BadRequest();
+            if (!ModelState.IsValid || !model.Score.HasValue || model.Score.Value > answer.Question.Marks)
+            {
+                TempData["ErrorMessage"] = $"Score must be between 0 and {answer.Question.Marks}.";
+                return RedirectToAction(nameof(QuizSubmissions), new { quizId = answer.Attempt.QuizId });
+            }
+
+            answer.Score = model.Score.Value;
+            answer.Feedback = model.Feedback?.Trim();
+            QuizAttemptProcessing.RecalculateScore(answer.Attempt, DateTime.UtcNow);
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                TempData["ErrorMessage"] = "Another grade update was saved first. Refresh the attempts page and try again.";
+                return RedirectToAction(nameof(QuizSubmissions), new { quizId = answer.Attempt.QuizId });
+            }
+            TempData["Message"] = "Quiz answer graded.";
+            return RedirectToAction(nameof(QuizSubmissions), new { quizId = answer.Attempt.QuizId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AnswerDoubt(AnswerStudentDoubtViewModel model)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var doubt = await _db.StudentDoubts
+                .SingleOrDefaultAsync(item =>
+                    item.Id == model.DoubtId &&
+                    item.Batch.StaffUserId == userId);
+            if (doubt is null)
+                return NotFound();
+            if (!ModelState.IsValid)
+            {
+                TempData["ErrorMessage"] = "Enter a solution of 4,000 characters or fewer.";
+                return RedirectToAction(nameof(BatchLearning), new { batchId = doubt.BatchId });
+            }
+
+            doubt.Solution = model.Solution.Trim();
+            doubt.AnsweredByStaffUserId = userId;
+            doubt.AnsweredUtc = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+            TempData["Message"] = "Doubt solution posted.";
+            return RedirectToAction(nameof(BatchLearning), new { batchId = doubt.BatchId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         [RequestSizeLimit(21 * 1024 * 1024)]
         public async Task<IActionResult> CreateStudyMaterial(CreateStudyMaterialViewModel model)
         {
@@ -836,6 +1165,34 @@ public class StaffController : Controller
                     MaxScore = assignment.MaxScore,
                     CreatedUtc = assignment.CreatedUtc,
                     SubmissionCount = assignment.Submissions.Count
+                })
+                .ToListAsync(),
+            Quizzes = await _db.Quizzes
+                .Where(quiz => quiz.BatchId == batch.Id)
+                .OrderByDescending(quiz => quiz.CreatedUtc)
+                .Select(quiz => new StaffQuizSummaryViewModel
+                {
+                    Id = quiz.Id,
+                    Title = quiz.Title,
+                    DurationMinutes = quiz.DurationMinutes,
+                    IsPublished = quiz.IsPublished,
+                    QuestionCount = quiz.Questions.Count,
+                    TotalMarks = quiz.Questions.Sum(question => (decimal?)question.Marks) ?? 0,
+                    AttemptCount = quiz.Attempts.Count
+                })
+                .ToListAsync(),
+            Doubts = await _db.StudentDoubts
+                .Where(doubt => doubt.BatchId == batch.Id)
+                .OrderBy(doubt => doubt.AnsweredUtc != null)
+                .ThenByDescending(doubt => doubt.CreatedUtc)
+                .Select(doubt => new StaffDoubtSummaryViewModel
+                {
+                    Id = doubt.Id,
+                    StudentName = doubt.Student.FullName,
+                    Question = doubt.Question,
+                    CreatedUtc = doubt.CreatedUtc,
+                    Solution = doubt.Solution,
+                    AnsweredUtc = doubt.AnsweredUtc
                 })
                 .ToListAsync()
         };

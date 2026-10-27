@@ -31,6 +31,7 @@ builder.Services.AddHttpClient<IZoomMeetingService, ZoomMeetingService>();
 builder.Services.AddHostedService<ScheduledClassCleanupService>();
 builder.Services.Configure<PrivateFileStorageOptions>(builder.Configuration.GetSection("Files"));
 builder.Services.AddSingleton<IPrivateFileStorage, PrivateFileStorage>();
+builder.Services.AddHostedService<QuizExpirationService>();
 var coachingTimeZoneId = builder.Configuration["Coaching:TimeZoneId"] ?? "Asia/Kolkata";
 var coachingTimeZone = TimeZoneInfo.FindSystemTimeZoneById(coachingTimeZoneId);
 builder.Services.AddSingleton(coachingTimeZone);

@@ -44,6 +44,7 @@
                         else if (User.IsInRole("Student"))
                         {
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Student" asp-action="Index">My learning</a></li>
+                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Student" asp-action="Index" asp-fragment="quizzes">Quizzes &amp; doubts</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Student" asp-action="Learning">Materials &amp; assignments</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Student" asp-action="LeaveRequests">Leave requests</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Student" asp-action="EnrollmentRequests">Course/batch requests</a></li>

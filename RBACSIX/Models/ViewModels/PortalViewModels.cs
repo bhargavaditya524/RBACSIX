@@ -250,6 +250,7 @@ public class StudentDashboardViewModel
 
 public class StudentBatchViewModel
 {
+    public int BatchId { get; set; }
     public string BatchName { get; set; } = string.Empty;
     public string CourseName { get; set; } = string.Empty;
     public string? StaffName { get; set; }
@@ -264,6 +265,8 @@ public class StudentBatchViewModel
     public decimal Balance { get; set; }
     public List<StudentResultSummaryViewModel> Results { get; set; } = new();
     public List<StudentClassViewModel> ScheduledClasses { get; set; } = new();
+    public List<StudentQuizSummaryViewModel> Quizzes { get; set; } = new();
+    public List<StudentDoubtSummaryViewModel> Doubts { get; set; } = new();
 }
 
 public class StudentClassViewModel
@@ -290,6 +293,214 @@ public class StaffBatchLearningViewModel
     public string CourseName { get; set; } = string.Empty;
     public List<StudyMaterialSummaryViewModel> Materials { get; set; } = new();
     public List<AssignmentSummaryViewModel> Assignments { get; set; } = new();
+    public List<StaffQuizSummaryViewModel> Quizzes { get; set; } = new();
+    public List<StaffDoubtSummaryViewModel> Doubts { get; set; } = new();
+}
+
+public class CreateQuizViewModel
+{
+    [Range(1, int.MaxValue)]
+    public int BatchId { get; set; }
+
+    [Required, StringLength(160)]
+    public string Title { get; set; } = string.Empty;
+
+    [StringLength(4000)]
+    public string? Instructions { get; set; }
+
+    [Range(1, 480)]
+    public int DurationMinutes { get; set; } = 30;
+}
+
+public class CreateQuizQuestionViewModel
+{
+    public int QuizId { get; set; }
+
+    [Required, StringLength(4000)]
+    public string Prompt { get; set; } = string.Empty;
+
+    [Required, StringLength(24)]
+    public string QuestionType { get; set; } = QuizQuestionTypes.MultipleChoice;
+
+    [Range(0.01, 100000)]
+    public decimal Marks { get; set; } = 1;
+
+    [StringLength(5000)]
+    public string? OptionsPerLine { get; set; }
+
+    [Range(1, 100)]
+    public int? CorrectOptionNumber { get; set; }
+}
+
+public class StaffQuizManagementViewModel
+{
+    public int QuizId { get; set; }
+    public int BatchId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Instructions { get; set; }
+    public string BatchName { get; set; } = string.Empty;
+    public int DurationMinutes { get; set; }
+    public bool IsPublished { get; set; }
+    public int AttemptCount { get; set; }
+    public decimal TotalMarks { get; set; }
+    public List<QuizQuestionSummaryViewModel> Questions { get; set; } = new();
+}
+
+public class QuizQuestionSummaryViewModel
+{
+    public int Id { get; set; }
+    public int Order { get; set; }
+    public string Prompt { get; set; } = string.Empty;
+    public string QuestionType { get; set; } = string.Empty;
+    public decimal Marks { get; set; }
+    public List<string> Options { get; set; } = new();
+    public string? CorrectOption { get; set; }
+}
+
+public class StaffQuizSummaryViewModel
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public int DurationMinutes { get; set; }
+    public bool IsPublished { get; set; }
+    public int QuestionCount { get; set; }
+    public decimal TotalMarks { get; set; }
+    public int AttemptCount { get; set; }
+}
+
+public class StaffQuizAttemptsViewModel
+{
+    public int QuizId { get; set; }
+    public string QuizTitle { get; set; } = string.Empty;
+    public decimal TotalMarks { get; set; }
+    public List<StaffQuizAttemptSummaryViewModel> Attempts { get; set; } = new();
+}
+
+public class StaffQuizAttemptSummaryViewModel
+{
+    public int Id { get; set; }
+    public string StudentName { get; set; } = string.Empty;
+    public DateTime StartedUtc { get; set; }
+    public DateTime SubmittedUtc { get; set; }
+    public decimal? TotalScore { get; set; }
+    public DateTime? GradedUtc { get; set; }
+    public List<StaffQuizAnswerSummaryViewModel> Answers { get; set; } = new();
+}
+
+public class StaffQuizAnswerSummaryViewModel
+{
+    public int Id { get; set; }
+    public string Prompt { get; set; } = string.Empty;
+    public string QuestionType { get; set; } = string.Empty;
+    public decimal Marks { get; set; }
+    public bool HasAnswer { get; set; }
+    public string? SelectedOption { get; set; }
+    public string? WrittenResponse { get; set; }
+    public string? OriginalFileName { get; set; }
+    public decimal? Score { get; set; }
+    public string? Feedback { get; set; }
+}
+
+public class GradeQuizAnswerViewModel
+{
+    public int AnswerId { get; set; }
+
+    [Required, Range(0, 100000)]
+    public decimal? Score { get; set; }
+
+    [StringLength(4000)]
+    public string? Feedback { get; set; }
+}
+
+public class StaffDoubtSummaryViewModel
+{
+    public int Id { get; set; }
+    public string StudentName { get; set; } = string.Empty;
+    public string Question { get; set; } = string.Empty;
+    public DateTime CreatedUtc { get; set; }
+    public string? Solution { get; set; }
+    public DateTime? AnsweredUtc { get; set; }
+}
+
+public class AnswerStudentDoubtViewModel
+{
+    public int DoubtId { get; set; }
+
+    [Required, StringLength(4000)]
+    public string Solution { get; set; } = string.Empty;
+}
+
+public class StudentQuizSummaryViewModel
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public int DurationMinutes { get; set; }
+    public int QuestionCount { get; set; }
+    public decimal TotalMarks { get; set; }
+    public int? AttemptId { get; set; }
+    public bool IsSubmitted { get; set; }
+    public DateTime? ExpiresUtc { get; set; }
+    public decimal? TotalScore { get; set; }
+    public DateTime? GradedUtc { get; set; }
+}
+
+public class StudentDoubtSummaryViewModel
+{
+    public int Id { get; set; }
+    public string Question { get; set; } = string.Empty;
+    public DateTime CreatedUtc { get; set; }
+    public string? Solution { get; set; }
+    public DateTime? AnsweredUtc { get; set; }
+}
+
+public class SubmitStudentDoubtViewModel
+{
+    [Range(1, int.MaxValue)]
+    public int BatchId { get; set; }
+
+    [Required, StringLength(4000)]
+    public string Question { get; set; } = string.Empty;
+}
+
+public class TakeQuizViewModel
+{
+    public int AttemptId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Instructions { get; set; }
+    public DateTime ExpiresUtc { get; set; }
+    public DateTime CurrentUtc { get; set; }
+    public List<TakeQuizQuestionViewModel> Questions { get; set; } = new();
+}
+
+public class TakeQuizQuestionViewModel
+{
+    public int Id { get; set; }
+    public int? AnswerId { get; set; }
+    public string Prompt { get; set; } = string.Empty;
+    public string QuestionType { get; set; } = string.Empty;
+    public decimal Marks { get; set; }
+    public List<QuizOptionViewModel> Options { get; set; } = new();
+    public int? SelectedOptionId { get; set; }
+    public string? WrittenResponse { get; set; }
+    public string? OriginalFileName { get; set; }
+}
+
+public class QuizOptionViewModel
+{
+    public int Id { get; set; }
+    public string Text { get; set; } = string.Empty;
+}
+
+public class SaveQuizAnswerViewModel
+{
+    public int AttemptId { get; set; }
+    public int QuestionId { get; set; }
+    public int? SelectedOptionId { get; set; }
+
+    [StringLength(8000)]
+    public string? WrittenResponse { get; set; }
+
+    public IFormFile? File { get; set; }
 }
 
 public class CreateStudyMaterialViewModel
@@ -404,6 +615,8 @@ public class StudentLearningBatchViewModel
     public string CourseName { get; set; } = string.Empty;
     public List<StudyMaterialSummaryViewModel> Materials { get; set; } = new();
     public List<StudentAssignmentViewModel> Assignments { get; set; } = new();
+    public List<StudentQuizSummaryViewModel> Quizzes { get; set; } = new();
+    public List<StudentDoubtSummaryViewModel> Doubts { get; set; } = new();
 }
 
 public class StudentAssignmentViewModel
