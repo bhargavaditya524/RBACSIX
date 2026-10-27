@@ -5,7 +5,16 @@
 
 <h1>Welcome, @Model.StudentName</h1>
 <p class="text-muted">Your coaching schedule, attendance, and exam results. Class times are shown in @Model.TimeZoneId.</p>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-success">@message</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
 <div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn btn-outline-primary" href="#quizzes">Quizzes &amp; doubts</a>
     <a class="btn btn-outline-primary" asp-action="LeaveRequests">Request or view leave</a>
     <a class="btn btn-outline-primary" asp-action="EnrollmentRequests">Request another course/batch</a>
     <a class="btn btn-outline-primary" asp-action="RegisterParent">Register a Parent</a>
@@ -18,7 +27,7 @@
 }
 else
 {
-    <div class="row g-3">
+    <div class="row g-3" id="quizzes">
     @foreach (var batch in Model.Batches)
     {
         <div class="col-lg-6">
@@ -64,6 +73,76 @@ else
                                 else
                                 {
                                     <span class="badge text-bg-secondary">Past</span>
+                                }
+                            </li>
+                        }
+                        </ul>
+                    }
+                    <h3 class="h6 mt-4">Quizzes</h3>
+                    @if (batch.Quizzes.Count == 0)
+                    {
+                        <p class="text-muted">No quizzes are published for this batch.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-group mb-3">
+                        @foreach (var quiz in batch.Quizzes)
+                        {
+                            <li class="list-group-item">
+                                <div class="d-flex flex-wrap justify-content-between gap-2">
+                                    <span>
+                                        <strong>@quiz.Title</strong><br />
+                                        <small class="text-muted">@quiz.QuestionCount questions · @quiz.TotalMarks points · @quiz.DurationMinutes minutes</small>
+                                    </span>
+                                    @if (quiz.AttemptId is null)
+                                    {
+                                        <form asp-action="StartQuiz" method="post">
+                                            <input type="hidden" name="quizId" value="@quiz.Id" />
+                                            <button class="btn btn-primary btn-sm" type="submit">Start quiz</button>
+                                        </form>
+                                    }
+                                    else if (!quiz.IsSubmitted)
+                                    {
+                                        <a class="btn btn-outline-primary btn-sm" asp-action="TakeQuiz" asp-route-attemptId="@quiz.AttemptId">Continue quiz</a>
+                                    }
+                                </div>
+                                @if (quiz.IsSubmitted)
+                                {
+                                    if (quiz.TotalScore.HasValue)
+                                    {
+                                        <p class="mb-0 mt-2"><strong>Score:</strong> @quiz.TotalScore / @quiz.TotalMarks</p>
+                                    }
+                                    else
+                                    {
+                                        <p class="text-muted mb-0 mt-2">Your answers are submitted and awaiting staff grading.</p>
+                                    }
+                                }
+                            </li>
+                        }
+                        </ul>
+                    }
+                    <h3 class="h6 mt-4">Ask staff a doubt</h3>
+                    <form asp-action="AskDoubt" method="post" class="mb-3">
+                        <input type="hidden" name="BatchId" value="@batch.BatchId" />
+                        <label class="form-label" for="doubt-@batch.BatchId">Your question</label>
+                        <textarea class="form-control mb-2" id="doubt-@batch.BatchId" name="Question" maxlength="4000" required></textarea>
+                        <button class="btn btn-outline-primary btn-sm" type="submit">Send doubt</button>
+                    </form>
+                    @if (batch.Doubts.Count > 0)
+                    {
+                        <h4 class="h6">Your doubts and solutions</h4>
+                        <ul class="list-group">
+                        @foreach (var doubt in batch.Doubts)
+                        {
+                            <li class="list-group-item">
+                                <p class="mb-1"><strong>You asked:</strong> @doubt.Question</p>
+                                @if (doubt.AnsweredUtc.HasValue)
+                                {
+                                    <p class="mb-0"><strong>Staff solution:</strong> @doubt.Solution</p>
+                                }
+                                else
+                                {
+                                    <p class="text-muted mb-0">Waiting for staff to respond.</p>
                                 }
                             </li>
                         }

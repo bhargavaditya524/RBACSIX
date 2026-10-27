@@ -1,0 +1,88 @@
+@model RBACSIX.Models.ViewModels.StaffQuizAttemptsViewModel
+@{
+    ViewData["Title"] = "Quiz attempts";
+}
+
+<h1>Quiz attempts: @Model.QuizTitle</h1>
+<p class="text-muted">@Model.TotalMarks points maximum</p>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-success">@message</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+<p><a asp-action="ManageQuiz" asp-route-quizId="@Model.QuizId">Back to quiz</a></p>
+
+@if (Model.Attempts.Count == 0)
+{
+    <p class="text-muted">No students have submitted an attempt yet.</p>
+}
+else
+{
+    @foreach (var attempt in Model.Attempts)
+    {
+        <section class="card mb-4">
+            <div class="card-header d-flex flex-wrap justify-content-between gap-2">
+                <strong>@attempt.StudentName</strong>
+                <span>
+                    Submitted @attempt.SubmittedUtc.ToLocalTime().ToString("g")
+                    @if (attempt.TotalScore.HasValue)
+                    {
+                        <strong> · @attempt.TotalScore / @Model.TotalMarks points</strong>
+                    }
+                    else
+                    {
+                        <span class="text-muted"> · Awaiting manual grading</span>
+                    }
+                </span>
+            </div>
+            <div class="card-body">
+                @foreach (var answer in attempt.Answers)
+                {
+                    <article class="border rounded p-3 mb-3">
+                        <h2 class="h6">@answer.Prompt <small class="text-muted">(@answer.Marks points · @answer.QuestionType)</small></h2>
+                        @if (answer.QuestionType == "MultipleChoice")
+                        {
+                            <p class="mb-1">Selected: @(answer.SelectedOption ?? "No answer")</p>
+                            <strong>@(answer.Score ?? 0) / @answer.Marks points</strong>
+                        }
+                        else
+                        {
+                            @if (answer.QuestionType == "Written")
+                            {
+                                <p class="text-break">@(answer.WrittenResponse ?? "No answer")</p>
+                            }
+                            else if (answer.OriginalFileName is not null)
+                            {
+                                <p><a asp-action="DownloadQuizAnswer" asp-route-answerId="@answer.Id">Download @answer.OriginalFileName</a></p>
+                            }
+                            else
+                            {
+                                <p class="text-muted">No answer submitted.</p>
+                            }
+                            @if (answer.HasAnswer)
+                            {
+                                <form asp-action="GradeQuizAnswer" method="post">
+                                    <input type="hidden" name="AnswerId" value="@answer.Id" />
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-3">
+                                            <label class="form-label" for="score-@answer.Id">Score (max @answer.Marks)</label>
+                                            <input class="form-control" id="score-@answer.Id" name="Score" type="number" min="0" max="@answer.Marks" step="0.01" value="@answer.Score" required />
+                                        </div>
+                                        <div class="col-md-7">
+                                            <label class="form-label" for="feedback-@answer.Id">Feedback</label>
+                                            <input class="form-control" id="feedback-@answer.Id" name="Feedback" maxlength="4000" value="@answer.Feedback" />
+                                        </div>
+                                        <div class="col-md-2"><button class="btn btn-primary" type="submit">Save grade</button></div>
+                                    </div>
+                                </form>
+                            }
+                        }
+                    </article>
+                }
+            </div>
+        </section>
+    }
+}

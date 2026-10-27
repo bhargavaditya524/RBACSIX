@@ -44,6 +44,31 @@ public class PrivateFileStorageTests
     }
 
     [Fact]
+    public async Task SaveQuizAnswerAsync_AllowsPdfAndImagesButRejectsOtherSubmissionTypes()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var storage = CreateStorage(root);
+
+        var pdf = await storage.SaveQuizAnswerAsync(
+            CreateFormFile("answer.pdf", "%PDF-1.7\ncontent"u8.ToArray()),
+            CancellationToken.None);
+        var image = await storage.SaveQuizAnswerAsync(
+            CreateFormFile("answer.png", [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00]),
+            CancellationToken.None);
+
+        Assert.Equal("application/pdf", pdf.ContentType);
+        Assert.Equal("image/png", image.ContentType);
+        await Assert.ThrowsAsync<InvalidUploadException>(() =>
+            storage.SaveQuizAnswerAsync(
+                CreateFormFile("answer.docx", "PK\x03\x04"u8.ToArray()),
+                CancellationToken.None));
+
+        await storage.DeleteAsync(pdf.StoredFileName);
+        await storage.DeleteAsync(image.StoredFileName);
+        Directory.Delete(root);
+    }
+
+    [Fact]
     public void Constructor_RejectsStorageConfiguredUnderPublicWebRoot()
     {
         var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));

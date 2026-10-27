@@ -4,7 +4,7 @@
 }
 
 <h1>@Model.CourseName — @Model.BatchName</h1>
-<p class="text-muted">Manage study materials, assignments, and announcements for this assigned batch.</p>
+<p class="text-muted">Manage study materials, assignments, quizzes, doubts, and announcements for this assigned batch.</p>
 @if (TempData["Message"] is string message)
 {
     <div class="alert alert-success">@message</div>
@@ -77,6 +77,30 @@
 <section class="mt-4">
     <div class="card">
         <div class="card-body">
+            <h2 class="h4">Create a batch quiz</h2>
+            <form asp-action="CreateQuiz" method="post" class="row g-3">
+                <input type="hidden" name="BatchId" value="@Model.BatchId" />
+                <div class="col-md-5">
+                    <label class="form-label" for="quiz-title">Title</label>
+                    <input class="form-control" id="quiz-title" name="Title" maxlength="160" required />
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label" for="quiz-instructions">Instructions</label>
+                    <input class="form-control" id="quiz-instructions" name="Instructions" maxlength="4000" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="quiz-duration">Timer (minutes)</label>
+                    <input class="form-control" id="quiz-duration" name="DurationMinutes" type="number" min="1" max="480" value="30" required />
+                </div>
+                <div class="col-12"><button class="btn btn-primary" type="submit">Create quiz draft</button></div>
+            </form>
+        </div>
+    </div>
+</section>
+
+<section class="mt-4">
+    <div class="card">
+        <div class="card-body">
             <h2 class="h4">Post batch announcement</h2>
             <form asp-action="CreateBatchAnnouncement" method="post">
                 <input type="hidden" name="BatchId" value="@Model.BatchId" />
@@ -89,6 +113,65 @@
         </div>
     </div>
 </section>
+
+<div class="row g-4 mt-1">
+                    <section class="col-lg-6">
+                        <h2 class="h4">Quizzes</h2>
+                        @if (Model.Quizzes.Count == 0)
+                        {
+                            <p class="text-muted">No quizzes have been created.</p>
+                        }
+                        else
+                        {
+                            <ul class="list-group">
+                                @foreach (var quiz in Model.Quizzes)
+                                {
+                                    <li class="list-group-item">
+                                        <strong>@quiz.Title</strong> · @quiz.QuestionCount questions · @quiz.TotalMarks points · @quiz.DurationMinutes minutes
+                                        <span class="badge @(quiz.IsPublished ? "text-bg-success" : "text-bg-secondary")">@(quiz.IsPublished ? "Published" : "Draft")</span>
+                                        <div class="mt-2">
+                                            <a asp-action="ManageQuiz" asp-route-quizId="@quiz.Id">Manage quiz</a>
+                                            @if (quiz.IsPublished)
+                                            {
+                                                <span> · </span>
+                                                <a asp-action="QuizSubmissions" asp-route-quizId="@quiz.Id">Review attempts (@quiz.AttemptCount)</a>
+                                            }
+                                        </div>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </section>
+                    <section class="col-lg-6">
+                        <h2 class="h4">Student doubts</h2>
+                        @if (Model.Doubts.Count == 0)
+                        {
+                            <p class="text-muted">No students have raised a doubt for this batch.</p>
+                        }
+                        else
+                        {
+                            @foreach (var doubt in Model.Doubts)
+                            {
+                                <article class="card mb-3">
+                                    <div class="card-body">
+                                        <p class="mb-1"><strong>@doubt.StudentName</strong> · <small class="text-muted">@doubt.CreatedUtc.ToLocalTime().ToString("g")</small></p>
+                                        <p class="mb-2">@doubt.Question</p>
+                                        @if (doubt.AnsweredUtc.HasValue)
+                                        {
+                                            <div class="alert alert-success mb-2"><strong>Solution:</strong> @doubt.Solution</div>
+                                        }
+                                        <form asp-action="AnswerDoubt" method="post">
+                                            <input type="hidden" name="DoubtId" value="@doubt.Id" />
+                                            <label class="form-label" for="solution-@doubt.Id">@(doubt.AnsweredUtc.HasValue ? "Update solution" : "Post solution")</label>
+                                            <textarea class="form-control mb-2" id="solution-@doubt.Id" name="Solution" maxlength="4000" required>@doubt.Solution</textarea>
+                                            <button class="btn btn-outline-primary btn-sm" type="submit">Save solution</button>
+                                        </form>
+                                    </div>
+                                </article>
+                            }
+                        }
+                    </section>
+                </div>
 
 <div class="row g-4 mt-1">
     <section class="col-lg-6">

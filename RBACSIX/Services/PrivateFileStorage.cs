@@ -18,6 +18,7 @@ public interface IPrivateFileStorage
 {
     Task<StoredUpload> SavePdfMaterialAsync(IFormFile file, CancellationToken cancellationToken);
     Task<StoredUpload> SaveSubmissionAsync(IFormFile file, CancellationToken cancellationToken);
+    Task<StoredUpload> SaveQuizAnswerAsync(IFormFile file, CancellationToken cancellationToken);
     FileStream OpenRead(string storedFileName);
     Task DeleteAsync(string storedFileName, CancellationToken cancellationToken = default);
 }
@@ -31,6 +32,17 @@ public sealed class PrivateFileStorage : IPrivateFileStorage
             [".docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             [".xlsx"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             [".pptx"] = "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            [".png"] = "image/png",
+            [".jpg"] = "image/jpeg",
+            [".jpeg"] = "image/jpeg",
+            [".gif"] = "image/gif",
+            [".webp"] = "image/webp"
+        };
+
+    private static readonly IReadOnlyDictionary<string, string> QuizAnswerContentTypes =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [".pdf"] = "application/pdf",
             [".png"] = "image/png",
             [".jpg"] = "image/jpeg",
             [".jpeg"] = "image/jpeg",
@@ -73,6 +85,11 @@ public sealed class PrivateFileStorage : IPrivateFileStorage
     public Task<StoredUpload> SaveSubmissionAsync(IFormFile file, CancellationToken cancellationToken)
     {
         return SaveAsync(file, SubmissionContentTypes, cancellationToken);
+    }
+
+    public Task<StoredUpload> SaveQuizAnswerAsync(IFormFile file, CancellationToken cancellationToken)
+    {
+        return SaveAsync(file, QuizAnswerContentTypes, cancellationToken);
     }
 
     public FileStream OpenRead(string storedFileName)

@@ -1,0 +1,119 @@
+@model RBACSIX.Models.ViewModels.StaffQuizManagementViewModel
+@{
+    ViewData["Title"] = "Manage quiz";
+}
+
+<h1>@Model.Title</h1>
+<p class="text-muted">@Model.BatchName · @Model.DurationMinutes-minute timer · @Model.Questions.Count questions · @Model.TotalMarks points</p>
+<p>
+    <a asp-action="BatchLearning" asp-route-batchId="@Model.BatchId">Back to batch learning</a>
+    @if (Model.IsPublished)
+    {
+        <span> · </span>
+        <a asp-action="QuizSubmissions" asp-route-quizId="@Model.QuizId">Review attempts (@Model.AttemptCount)</a>
+    }
+</p>
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-success">@message</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+@if (!string.IsNullOrWhiteSpace(Model.Instructions))
+{
+    <p>@Model.Instructions</p>
+}
+
+<section class="mb-4">
+    <h2 class="h4">Questions</h2>
+    @if (Model.Questions.Count == 0)
+    {
+        <p class="text-muted">Add at least one question before publishing this quiz.</p>
+    }
+    else
+    {
+        <ol class="list-group list-group-numbered">
+            @foreach (var question in Model.Questions)
+            {
+                <li class="list-group-item">
+                    <strong>@question.Prompt</strong>
+                    <span class="badge text-bg-secondary">@question.QuestionType</span>
+                    <span class="text-muted">· @question.Marks points</span>
+                    @if (question.Options.Count > 0)
+                    {
+                        <ul class="mb-1">
+                            @foreach (var option in question.Options)
+                            {
+                                <li>@option</li>
+                            }
+                        </ul>
+                        <p class="mb-0"><strong>Correct option:</strong> @question.CorrectOption</p>
+                    }
+                </li>
+            }
+        </ol>
+    }
+</section>
+
+@if (!Model.IsPublished)
+{
+    <section class="card mb-4">
+        <div class="card-body">
+            <h2 class="h4">Add a question</h2>
+            <form asp-action="AddQuizQuestion" method="post">
+                <input type="hidden" name="QuizId" value="@Model.QuizId" />
+                <div class="mb-3">
+                    <label class="form-label" for="question-prompt">Question</label>
+                    <textarea class="form-control" id="question-prompt" name="Prompt" maxlength="4000" required></textarea>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label" for="question-type">Answer type</label>
+                        <select class="form-select" id="question-type" name="QuestionType">
+                            <option value="MultipleChoice">Multiple choice</option>
+                            <option value="Written">Written explanation</option>
+                            <option value="FileUpload">PDF/image upload</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="question-marks">Marks</label>
+                        <input class="form-control" id="question-marks" name="Marks" type="number" min="0.01" max="100000" step="0.01" value="1" required />
+                    </div>
+                </div>
+                <div id="multiple-choice-fields" class="mt-3">
+                    <label class="form-label" for="question-options">Options (one per line)</label>
+                    <textarea class="form-control" id="question-options" name="OptionsPerLine" maxlength="5000" rows="4"></textarea>
+                    <label class="form-label mt-2" for="correct-option-number">Correct option number (1-based)</label>
+                    <input class="form-control" id="correct-option-number" name="CorrectOptionNumber" type="number" min="1" max="100" />
+                </div>
+                <button class="btn btn-primary mt-3" type="submit">Add question</button>
+            </form>
+        </div>
+    </section>
+    <form asp-action="PublishQuiz" method="post">
+        <input type="hidden" name="quizId" value="@Model.QuizId" />
+        <button class="btn btn-success" type="submit" disabled="@(Model.Questions.Count == 0)">Publish quiz for this batch</button>
+        <span class="text-muted ms-2">Publishing locks the questions and starts showing the quiz to enrolled students.</span>
+    </form>
+}
+
+@section Scripts {
+    <script>
+        (() => {
+            const type = document.getElementById("question-type");
+            const fields = document.getElementById("multiple-choice-fields");
+            const options = document.getElementById("question-options");
+            const correct = document.getElementById("correct-option-number");
+            const update = () => {
+                const isMultipleChoice = type.value === "MultipleChoice";
+                fields.hidden = !isMultipleChoice;
+                options.required = isMultipleChoice;
+                correct.required = isMultipleChoice;
+            };
+            type.addEventListener("change", update);
+            update();
+        })();
+    </script>
+}

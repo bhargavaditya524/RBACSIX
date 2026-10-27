@@ -2,6 +2,13 @@ using System.ComponentModel.DataAnnotations;
 
 namespace RBACSIX.Models;
 
+public static class QuizQuestionTypes
+{
+    public const string MultipleChoice = "MultipleChoice";
+    public const string Written = "Written";
+    public const string FileUpload = "FileUpload";
+}
+
 public class StudentProfile
 {
     public int Id { get; set; }
@@ -109,6 +116,8 @@ public class Batch
     public ICollection<StudyMaterial> StudyMaterials { get; set; } = new List<StudyMaterial>();
     public ICollection<Assignment> Assignments { get; set; } = new List<Assignment>();
     public ICollection<Announcement> Announcements { get; set; } = new List<Announcement>();
+    public ICollection<Quiz> Quizzes { get; set; } = new List<Quiz>();
+    public ICollection<StudentDoubt> Doubts { get; set; } = new List<StudentDoubt>();
 }
 
 public class Enrollment
@@ -333,6 +342,153 @@ public class AssignmentSubmission
 
     public string? GradedByStaffUserId { get; set; }
     public DateTime? GradedUtc { get; set; }
+}
+
+public class Quiz
+{
+    public int Id { get; set; }
+
+    [Required]
+    public int BatchId { get; set; }
+    public Batch Batch { get; set; } = null!;
+
+    [Required]
+    public string CreatedByStaffUserId { get; set; } = string.Empty;
+
+    [Required, StringLength(160)]
+    public string Title { get; set; } = string.Empty;
+
+    [StringLength(4000)]
+    public string? Instructions { get; set; }
+
+    [Range(1, 480)]
+    public int DurationMinutes { get; set; }
+
+    public bool IsPublished { get; set; }
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+
+    public ICollection<QuizQuestion> Questions { get; set; } = new List<QuizQuestion>();
+    public ICollection<QuizAttempt> Attempts { get; set; } = new List<QuizAttempt>();
+}
+
+public class QuizQuestion
+{
+    public int Id { get; set; }
+
+    [Required]
+    public int QuizId { get; set; }
+    public Quiz Quiz { get; set; } = null!;
+
+    [Required, StringLength(4000)]
+    public string Prompt { get; set; } = string.Empty;
+
+    [Required, StringLength(24)]
+    public string QuestionType { get; set; } = string.Empty;
+
+    [Range(0.01, 100000)]
+    public decimal Marks { get; set; }
+
+    public int Order { get; set; }
+
+    public ICollection<QuizQuestionOption> Options { get; set; } = new List<QuizQuestionOption>();
+    public ICollection<QuizAnswer> Answers { get; set; } = new List<QuizAnswer>();
+}
+
+public class QuizQuestionOption
+{
+    public int Id { get; set; }
+
+    [Required]
+    public int QuizQuestionId { get; set; }
+    public QuizQuestion Question { get; set; } = null!;
+
+    [Required, StringLength(1000)]
+    public string Text { get; set; } = string.Empty;
+
+    public int Order { get; set; }
+    public bool IsCorrect { get; set; }
+}
+
+public class QuizAttempt
+{
+    public int Id { get; set; }
+
+    [Required]
+    public int QuizId { get; set; }
+    public Quiz Quiz { get; set; } = null!;
+
+    [Required]
+    public int StudentProfileId { get; set; }
+    public StudentProfile Student { get; set; } = null!;
+
+    public DateTime StartedUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? LastSavedUtc { get; set; }
+    public DateTime ExpiresUtc { get; set; }
+    public DateTime? SubmittedUtc { get; set; }
+    public decimal? TotalScore { get; set; }
+    public DateTime? GradedUtc { get; set; }
+
+    public ICollection<QuizAnswer> Answers { get; set; } = new List<QuizAnswer>();
+}
+
+public class QuizAnswer
+{
+    public int Id { get; set; }
+
+    [Required]
+    public int QuizAttemptId { get; set; }
+    public QuizAttempt Attempt { get; set; } = null!;
+
+    [Required]
+    public int QuizQuestionId { get; set; }
+    public QuizQuestion Question { get; set; } = null!;
+
+    public int? SelectedOptionId { get; set; }
+    public QuizQuestionOption? SelectedOption { get; set; }
+
+    [StringLength(8000)]
+    public string? WrittenResponse { get; set; }
+
+    [StringLength(100)]
+    public string? StoredFileName { get; set; }
+
+    [StringLength(255)]
+    public string? OriginalFileName { get; set; }
+
+    [StringLength(100)]
+    public string? ContentType { get; set; }
+
+    [Range(0, 100000)]
+    public decimal? Score { get; set; }
+
+    [StringLength(4000)]
+    public string? Feedback { get; set; }
+
+    public DateTime? AnsweredUtc { get; set; }
+}
+
+public class StudentDoubt
+{
+    public int Id { get; set; }
+
+    [Required]
+    public int BatchId { get; set; }
+    public Batch Batch { get; set; } = null!;
+
+    [Required]
+    public int StudentProfileId { get; set; }
+    public StudentProfile Student { get; set; } = null!;
+
+    [Required, StringLength(4000)]
+    public string Question { get; set; } = string.Empty;
+
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+
+    [StringLength(4000)]
+    public string? Solution { get; set; }
+
+    public string? AnsweredByStaffUserId { get; set; }
+    public DateTime? AnsweredUtc { get; set; }
 }
 
 public class Announcement

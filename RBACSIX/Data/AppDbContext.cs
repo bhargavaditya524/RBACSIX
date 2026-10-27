@@ -21,6 +21,12 @@ namespace RBACSIX.Data
         public DbSet<StudyMaterial> StudyMaterials => Set<StudyMaterial>();
         public DbSet<Assignment> Assignments => Set<Assignment>();
         public DbSet<AssignmentSubmission> AssignmentSubmissions => Set<AssignmentSubmission>();
+        public DbSet<Quiz> Quizzes => Set<Quiz>();
+        public DbSet<QuizQuestion> QuizQuestions => Set<QuizQuestion>();
+        public DbSet<QuizQuestionOption> QuizQuestionOptions => Set<QuizQuestionOption>();
+        public DbSet<QuizAttempt> QuizAttempts => Set<QuizAttempt>();
+        public DbSet<QuizAnswer> QuizAnswers => Set<QuizAnswer>();
+        public DbSet<StudentDoubt> StudentDoubts => Set<StudentDoubt>();
         public DbSet<Announcement> Announcements => Set<Announcement>();
         public DbSet<ParentProfile> ParentProfiles => Set<ParentProfile>();
         public DbSet<ParentStudentLink> ParentStudentLinks => Set<ParentStudentLink>();
@@ -179,6 +185,98 @@ namespace RBACSIX.Data
             builder.Entity<AssignmentSubmission>()
                 .Property(submission => submission.Score)
                 .HasPrecision(18, 2);
+
+            builder.Entity<Quiz>()
+                .HasIndex(quiz => new { quiz.BatchId, quiz.CreatedUtc });
+
+            builder.Entity<Quiz>()
+                .HasOne(quiz => quiz.Batch)
+                .WithMany(batch => batch.Quizzes)
+                .HasForeignKey(quiz => quiz.BatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<QuizQuestion>()
+                .HasIndex(question => new { question.QuizId, question.Order })
+                .IsUnique();
+
+            builder.Entity<QuizQuestion>()
+                .HasOne(question => question.Quiz)
+                .WithMany(quiz => quiz.Questions)
+                .HasForeignKey(question => question.QuizId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<QuizQuestion>()
+                .Property(question => question.Marks)
+                .HasPrecision(18, 2);
+
+            builder.Entity<QuizQuestionOption>()
+                .HasIndex(option => new { option.QuizQuestionId, option.Order })
+                .IsUnique();
+
+            builder.Entity<QuizQuestionOption>()
+                .HasOne(option => option.Question)
+                .WithMany(question => question.Options)
+                .HasForeignKey(option => option.QuizQuestionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<QuizAttempt>()
+                .HasIndex(attempt => new { attempt.QuizId, attempt.StudentProfileId })
+                .IsUnique();
+
+            builder.Entity<QuizAttempt>()
+                .HasOne(attempt => attempt.Student)
+                .WithMany()
+                .HasForeignKey(attempt => attempt.StudentProfileId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<QuizAttempt>()
+                .Property(attempt => attempt.TotalScore)
+                .HasPrecision(18, 2);
+
+            builder.Entity<QuizAttempt>()
+                .Property(attempt => attempt.SubmittedUtc)
+                .IsConcurrencyToken();
+
+            builder.Entity<QuizAnswer>()
+                .HasIndex(answer => new { answer.QuizAttemptId, answer.QuizQuestionId })
+                .IsUnique();
+
+            builder.Entity<QuizAnswer>()
+                .HasOne(answer => answer.Attempt)
+                .WithMany(attempt => attempt.Answers)
+                .HasForeignKey(answer => answer.QuizAttemptId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<QuizAnswer>()
+                .HasOne(answer => answer.Question)
+                .WithMany(question => question.Answers)
+                .HasForeignKey(answer => answer.QuizQuestionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<QuizAnswer>()
+                .HasOne(answer => answer.SelectedOption)
+                .WithMany()
+                .HasForeignKey(answer => answer.SelectedOptionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<QuizAnswer>()
+                .Property(answer => answer.Score)
+                .HasPrecision(18, 2);
+
+            builder.Entity<StudentDoubt>()
+                .HasIndex(doubt => new { doubt.BatchId, doubt.StudentProfileId, doubt.CreatedUtc });
+
+            builder.Entity<StudentDoubt>()
+                .HasOne(doubt => doubt.Batch)
+                .WithMany(batch => batch.Doubts)
+                .HasForeignKey(doubt => doubt.BatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<StudentDoubt>()
+                .HasOne(doubt => doubt.Student)
+                .WithMany()
+                .HasForeignKey(doubt => doubt.StudentProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             builder.Entity<Announcement>()
                 .HasIndex(announcement => new { announcement.BatchId, announcement.CreatedUtc });

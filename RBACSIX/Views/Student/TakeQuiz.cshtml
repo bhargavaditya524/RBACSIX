@@ -1,0 +1,230 @@
+@model RBACSIX.Models.ViewModels.TakeQuizViewModel
+@{
+    ViewData["Title"] = "Take quiz";
+}
+
+<h1>@Model.Title</h1>
+@if (!string.IsNullOrWhiteSpace(Model.Instructions))
+{
+    <p>@Model.Instructions</p>
+}
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-success">@message</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+<div class="alert alert-warning d-flex flex-wrap justify-content-between gap-2"
+     id="quiz-timer"
+     data-expires-utc="@Model.ExpiresUtc.ToString("O")"
+     data-current-utc="@Model.CurrentUtc.ToString("O")">
+    <strong>Time remaining: <span id="time-remaining">--:--</span></strong>
+    <span>Answers are saved as you work. The server submits saved answers when time expires.</span>
+</div>
+<div id="quiz-save-error" class="alert alert-danger" role="alert" hidden></div>
+
+@foreach (var question in Model.Questions)
+{
+    <section class="card mb-3">
+        <div class="card-body">
+            <h2 class="h5">@question.Prompt <small class="text-muted">(@question.Marks points)</small></h2>
+            <form asp-action="SaveQuizAnswer"
+                  method="post"
+                  enctype="multipart/form-data"
+                  class="quiz-answer-form"
+                  data-question-type="@question.QuestionType">
+                <input type="hidden" name="AttemptId" value="@Model.AttemptId" />
+                <input type="hidden" name="QuestionId" value="@question.Id" />
+                @if (question.QuestionType == "MultipleChoice")
+                {
+                    <label class="form-label" for="answer-@question.Id">Select one answer</label>
+                    <select class="form-select quiz-answer-input" id="answer-@question.Id" name="SelectedOptionId">
+                        <option value="">Choose an option</option>
+                        @foreach (var option in question.Options)
+                        {
+                            if (question.SelectedOptionId == option.Id)
+                            {
+                                <option value="@option.Id" selected>@option.Text</option>
+                            }
+                            else
+                            {
+                                <option value="@option.Id">@option.Text</option>
+                            }
+                        }
+                    </select>
+                }
+                else if (question.QuestionType == "Written")
+                {
+                    <label class="form-label" for="answer-@question.Id">Your explanation</label>
+                    <textarea class="form-control quiz-answer-input"
+                              id="answer-@question.Id"
+                              name="WrittenResponse"
+                              maxlength="8000"
+                              rows="4">@question.WrittenResponse</textarea>
+                }
+                else
+                {
+                    <label class="form-label" for="answer-@question.Id">Upload a PDF or image (up to 20 MB)</label>
+                    <input class="form-control quiz-answer-input"
+                           id="answer-@question.Id"
+                           name="File"
+                           type="file"
+                           accept=".pdf,.png,.jpg,.jpeg,.gif,.webp" />
+                    @if (question.OriginalFileName is not null)
+                    {
+                        <p class="form-text mb-0">
+                            Saved answer:
+                            @if (question.AnswerId.HasValue)
+                            {
+                                <a asp-action="DownloadQuizAnswer" asp-route-answerId="@question.AnswerId">@question.OriginalFileName</a>
+                            }
+                            else
+                            {
+                                @question.OriginalFileName
+                            }
+                        </p>
+                    }
+                }
+                <p class="form-text quiz-answer-status mb-0" aria-live="polite">Changes save automatically.</p>
+                <button class="btn btn-outline-secondary btn-sm mt-2 manual-save-button" type="submit">Save answer</button>
+            </form>
+        </div>
+    </section>
+}
+
+<form asp-action="SubmitQuiz" method="post" id="submit-quiz-form">
+    <input type="hidden" name="attemptId" value="@Model.AttemptId" />
+    <button class="btn btn-success" id="submit-quiz-button" type="submit">Submit quiz</button>
+</form>
+
+@section Scripts {
+    <script>
+        (() => {
+            const timer = document.getElementById("quiz-timer");
+            const remaining = document.getElementById("time-remaining");
+            const saveError = document.getElementById("quiz-save-error");
+            const submitForm = document.getElementById("submit-quiz-form");
+            const submitButton = document.getElementById("submit-quiz-button");
+            const answerForms = [...document.querySelectorAll(".quiz-answer-form")];
+            const scheduled = new Map();
+            const saveQueues = new WeakMap();
+            const pendingSaves = new Set();
+            let submitting = false;
+
+            for (const form of answerForms) {
+                const manualSaveButton = form.querySelector(".manual-save-button");
+                if (manualSaveButton) {
+                    manualSaveButton.hidden = true;
+                }
+            }
+
+            const save = form => {
+                const status = form.querySelector(".quiz-answer-status");
+                const previous = saveQueues.get(form) || Promise.resolve();
+                const request = previous.then(async () => {
+                    try {
+                        const response = await fetch(form.action, {
+                            method: "POST",
+                            body: new FormData(form),
+                            credentials: "same-origin",
+                            headers: { "X-Requested-With": "XMLHttpRequest" }
+                        });
+                        if (!response.ok) {
+                            const result = await response.json().catch(() => null);
+                            throw new Error(result?.message || "Answer could not be saved.");
+                        }
+                        const result = await response.json();
+                        status.textContent = "Saved.";
+                        if (result.warning) {
+                            saveError.textContent = result.warning;
+                            saveError.hidden = false;
+                        } else {
+                            saveError.hidden = true;
+                        }
+                    } catch (error) {
+                        status.textContent = "Not saved.";
+                        saveError.textContent = error instanceof Error ? error.message : "Answer could not be saved.";
+                        saveError.hidden = false;
+                    }
+                }).finally(() => pendingSaves.delete(request));
+                saveQueues.set(form, request);
+                pendingSaves.add(request);
+                return request;
+            };
+
+            const flushScheduled = () => {
+                for (const [form, timeout] of scheduled) {
+                    clearTimeout(timeout);
+                    scheduled.delete(form);
+                    save(form);
+                }
+            };
+
+            for (const form of answerForms) {
+                form.addEventListener("change", event => {
+                    if (submitting) {
+                        return;
+                    }
+                    const timeout = scheduled.get(form);
+                    if (timeout) {
+                        clearTimeout(timeout);
+                        scheduled.delete(form);
+                    }
+                    save(form);
+                });
+                form.addEventListener("input", event => {
+                    if (submitting) {
+                        return;
+                    }
+                    if (!(event.target instanceof HTMLTextAreaElement)) {
+                        return;
+                    }
+                    const previous = scheduled.get(form);
+                    if (previous) {
+                        clearTimeout(previous);
+                    }
+                    scheduled.set(form, setTimeout(() => {
+                        scheduled.delete(form);
+                        save(form);
+                    }, 500));
+                });
+            }
+
+            submitForm.addEventListener("submit", async event => {
+                if (submitting) {
+                    event.preventDefault();
+                    return;
+                }
+                event.preventDefault();
+                submitting = true;
+                submitButton.disabled = true;
+                flushScheduled();
+                await Promise.all([...pendingSaves]);
+                for (const form of answerForms) {
+                    for (const control of form.elements) {
+                        control.disabled = true;
+                    }
+                }
+                HTMLFormElement.prototype.submit.call(submitForm);
+            });
+
+            const expiresAt = Date.parse(timer.dataset.expiresUtc);
+            const serverNow = Date.parse(timer.dataset.currentUtc);
+            const receivedAt = Date.now();
+            const updateTimer = () => {
+                const estimatedNow = serverNow + (Date.now() - receivedAt);
+                const secondsLeft = Math.max(0, Math.ceil((expiresAt - estimatedNow) / 1000));
+                const minutes = Math.floor(secondsLeft / 60).toString().padStart(2, "0");
+                const seconds = (secondsLeft % 60).toString().padStart(2, "0");
+                remaining.textContent = `${minutes}:${seconds}`;
+                if (secondsLeft === 0 && !submitting) {
+                    submitForm.requestSubmit();
+                }
+            };
+            updateTimer();
+            setInterval(updateTimer, 1000);
+        })();
+    </script>
+}
