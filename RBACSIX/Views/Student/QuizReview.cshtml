@@ -1,0 +1,54 @@
+@model RBACSIX.Models.ViewModels.StudentQuizReviewViewModel
+@{
+    ViewData["Title"] = "Quiz review";
+}
+
+<h1>Quiz review: @Model.QuizTitle</h1>
+<p class="lead"><strong>Final score:</strong> @Model.TotalScore / @Model.TotalMarks</p>
+<p class="text-muted">Submitted @Model.SubmittedUtc.ToLocalTime().ToString("g") · graded @Model.GradedUtc.ToLocalTime().ToString("g")</p>
+<p><a asp-action="Index">Back to my learning</a></p>
+
+@foreach (var question in Model.Questions)
+{
+    <article class="card mb-3">
+        <div class="card-body">
+            <h2 class="h5">@question.Prompt <small class="text-muted">(@question.Score / @question.Marks points)</small></h2>
+            @if (question.QuestionType == "MultipleChoice")
+            {
+                <p class="mb-1">
+                    <strong>Your answer:</strong>
+                    @(question.SelectedOption ?? "No answer")
+                    @if (question.IsCorrect == true)
+                    {
+                        <span class="badge text-bg-success">Correct</span>
+                    }
+                    else
+                    {
+                        <span class="badge text-bg-danger">Incorrect</span>
+                    }
+                </p>
+                @if (question.IsCorrect != true)
+                {
+                    <p class="mb-1"><strong>Correct answer:</strong> @(question.CorrectOption ?? "Not configured")</p>
+                }
+            }
+            else if (question.QuestionType == "Written")
+            {
+                <p><strong>Your response:</strong></p>
+                <p class="text-break">@(question.WrittenResponse ?? "No response submitted.")</p>
+            }
+            else if (question.AnswerId.HasValue)
+            {
+                <p><strong>Your uploaded answer:</strong> <a asp-action="DownloadQuizAnswer" asp-route-answerId="@question.AnswerId">@question.OriginalFileName</a></p>
+            }
+            else
+            {
+                <p class="text-muted">No file was submitted.</p>
+            }
+            @if (!string.IsNullOrWhiteSpace(question.Feedback))
+            {
+                <div class="alert alert-info mb-0"><strong>Staff feedback:</strong> @question.Feedback</div>
+            }
+        </div>
+    </article>
+}

@@ -25,6 +25,7 @@ public interface IZoomMeetingService
         CancellationToken cancellationToken = default);
 
     Task DeleteMeetingAsync(string meetingId, CancellationToken cancellationToken = default);
+    Task<string> GetMeetingHostStartUrlAsync(string meetingId, CancellationToken cancellationToken = default);
 }
 
 public sealed class ZoomMeetingService : IZoomMeetingService
@@ -118,6 +119,49 @@ public sealed class ZoomMeetingService : IZoomMeetingService
             throw new ZoomMeetingException(
                 $"Zoom could not remove the unlinked meeting (HTTP {(int)response.StatusCode}).");
         }
+    }
+
+    public async Task<string> GetMeetingHostStartUrlAsync(
+        string meetingId,
+        CancellationToken cancellationToken = default)
+    {
+        var token = await GetAccessTokenAsync(cancellationToken);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"{ApiBaseUrl}meetings/{Uri.EscapeDataString(meetingId)}");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorDetail = await GetSafeErrorDetailAsync(response, cancellationToken);
+            _logger.LogWarning(
+                "Zoom host-link lookup failed for meeting {MeetingId} with status {StatusCode}: {ErrorDetail}",
+                meetingId,
+                (int)response.StatusCode,
+                errorDetail);
+            throw new ZoomMeetingException(
+                $"Zoom could not retrieve the host link (HTTP {(int)response.StatusCode}). {errorDetail}");
+        }
+
+        ZoomMeetingResponse? meetingResponse;
+        try
+        {
+            meetingResponse = await response.Content.ReadFromJsonAsync<ZoomMeetingResponse>(
+                cancellationToken: cancellationToken);
+        }
+        catch (JsonException exception)
+        {
+            _logger.LogWarning(exception, "Zoom returned an invalid host-link response for meeting {MeetingId}.", meetingId);
+            throw new ZoomMeetingException("Zoom returned an invalid host-link response.", exception);
+        }
+
+        if (string.IsNullOrWhiteSpace(meetingResponse?.StartUrl))
+        {
+            _logger.LogWarning("Zoom returned no host link for meeting {MeetingId}.", meetingId);
+            throw new ZoomMeetingException("Zoom did not return a host link for this meeting.");
+        }
+
+        return meetingResponse.StartUrl;
     }
 
     private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
@@ -305,6 +349,10 @@ public sealed class ZoomMeetingService : IZoomMeetingService
 
         [JsonPropertyName("join_url")]
         public string? JoinUrl { get; set; }
+
+        [JsonPropertyName("start_url")]
+        public string? StartUrl { get; set; }
+
     }
 }
 

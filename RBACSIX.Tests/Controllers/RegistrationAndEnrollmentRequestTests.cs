@@ -326,6 +326,9 @@ public class RegistrationAndEnrollmentRequestTests
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task DeleteMeetingAsync(string meetingId, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+
+        public Task<string> GetMeetingHostStartUrlAsync(string meetingId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class StubSignInManager : SignInManager<Users>

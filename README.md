@@ -51,11 +51,11 @@ Students can register from the sign-in page and are signed in immediately. Staff
 
 Students can request another active course/batch from **Course/batch requests**. The request does not enroll them. Admins review requests from the dashboard or **Enrollment requests**; approval checks that the Student is not already enrolled, that the course is active, and that batch capacity has not been reached. A request that cannot be approved because the batch is full is rejected with a note and no enrollment is created.
 
-**Reports** are role-scoped: Admins see enrollment, payment/balance, and attendance overviews; Staff see attendance and results only for currently assigned batches; Students see only their own attendance, results, and fee balances. Charts include a data table alternative and require no external chart service.
+**Reports** are role-scoped: Admins see enrollment, payment/balance, and attendance overviews; Staff see attendance and results only for currently assigned batches; Students see only their own attendance, results, and fee balances. Charts include a data table alternative and require no external chart service. After a quiz is submitted and all manual grading is complete, Students can open **Review checked answers** to see their responses, marks, correct multiple-choice answers, and Staff feedback. Review and answer-file access are restricted to the Student who made the attempt.
 
 ### Zoom class setup
 
-Zoom class scheduling and deletion require an activated Zoom Server-to-Server OAuth app with the `meeting:write:meeting:admin` and `meeting:delete:meeting:admin` scopes enabled. Set the Account ID, Client ID, and Client Secret locally; do not commit credentials to `appsettings*.json`:
+Zoom class scheduling, deletion, and staff host access require an activated Zoom Server-to-Server OAuth app with the `meeting:write:meeting:admin`, `meeting:delete:meeting:admin`, and `meeting:read:meeting:admin` scopes enabled. Staff who created a meeting can use **My batches → Join as host** while it is upcoming or in progress. The app fetches the current host start URL from Zoom when clicked rather than storing the privileged, time-limited host URL in the database; student dashboards only receive the attendee join URL. Set the Account ID, Client ID, and Client Secret locally; do not commit credentials to `appsettings*.json`:
 
 ```powershell
 dotnet user-secrets set "Zoom:AccountId" "YOUR_ZOOM_ACCOUNT_ID" --project .\RBACSIX\RBACSIX.csproj

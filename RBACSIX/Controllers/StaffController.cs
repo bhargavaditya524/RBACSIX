@@ -66,6 +66,7 @@ public class StaffController : Controller
                             _coachingTimeZone),
                         DurationMinutes = scheduledClass.DurationMinutes,
                         ZoomMeetingId = scheduledClass.ZoomMeetingId,
+                        CanJoinAsHost = scheduledClass.CreatedByStaffUserId == userId,
                         IsUpcoming = scheduledClass.StartTimeUtc >= now,
                         CanDelete = scheduledClass.CreatedByStaffUserId == userId
                     })
@@ -121,6 +122,43 @@ public class StaffController : Controller
 
         TempData["Message"] = "Zoom class deleted.";
         return RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> JoinScheduledClass(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var scheduledClass = await _db.ScheduledClasses
+            .Where(item =>
+                item.Id == id &&
+                item.Batch.StaffUserId == userId &&
+                item.CreatedByStaffUserId == userId &&
+                item.StartTimeUtc.AddMinutes(item.DurationMinutes) > DateTime.UtcNow)
+            .Select(item => new { item.ZoomMeetingId })
+            .SingleOrDefaultAsync();
+        if (scheduledClass is null)
+            return NotFound();
+        string hostStartUrl;
+        try
+        {
+            hostStartUrl = await _zoomMeetingService.GetMeetingHostStartUrlAsync(
+                scheduledClass.ZoomMeetingId,
+                HttpContext.RequestAborted);
+        }
+        catch (ZoomMeetingException exception)
+        {
+            _logger.LogWarning(exception, "Could not retrieve Zoom host link for scheduled class {ScheduledClassId}.", id);
+            TempData["ErrorMessage"] = exception.Message;
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (!IsZoomUrl(hostStartUrl))
+        {
+            _logger.LogWarning("Zoom returned an invalid host URL for scheduled class {ScheduledClassId}.", id);
+            return Problem("The Zoom host link is invalid.");
+        }
+
+        return Redirect(hostStartUrl);
     }
 
         [HttpGet]
@@ -823,10 +861,7 @@ public class StaffController : Controller
             return View(model);
         }
 
-        if (!Uri.TryCreate(meeting.JoinUrl, UriKind.Absolute, out var joinUri) ||
-            joinUri.Scheme != Uri.UriSchemeHttps ||
-            !string.Equals(joinUri.Host, "zoom.us", StringComparison.OrdinalIgnoreCase) &&
-            !joinUri.Host.EndsWith(".zoom.us", StringComparison.OrdinalIgnoreCase))
+        if (!IsZoomUrl(meeting.JoinUrl))
         {
             _logger.LogWarning(
                 "Zoom returned a join URL with an unexpected host for meeting {MeetingId}.",
@@ -1133,6 +1168,14 @@ public class StaffController : Controller
         return _db.Batches.Where(batch => batch.StaffUserId == userId);
     }
 
+    private static bool IsZoomUrl(string? value)
+    {
+        return Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+               uri.Scheme == Uri.UriSchemeHttps &&
+               (string.Equals(uri.Host, "zoom.us", StringComparison.OrdinalIgnoreCase) ||
+                uri.Host.EndsWith(".zoom.us", StringComparison.OrdinalIgnoreCase));
+    }
+
     private async Task<StaffBatchLearningViewModel> BuildBatchLearningViewModelAsync(Batch batch)
     {
         return new StaffBatchLearningViewModel
@@ -1227,6 +1270,7 @@ public class StaffController : Controller
                 StartTimeLocal = scheduledClass.StartTimeUtc,
                 DurationMinutes = scheduledClass.DurationMinutes,
                 ZoomMeetingId = scheduledClass.ZoomMeetingId,
+                CanJoinAsHost = scheduledClass.CreatedByStaffUserId == userId,
                 IsUpcoming = scheduledClass.StartTimeUtc >= now,
                 IsInProgress = scheduledClass.StartTimeUtc < now,
                 CanDelete = scheduledClass.CreatedByStaffUserId == userId

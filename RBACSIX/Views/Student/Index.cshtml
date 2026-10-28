@@ -110,7 +110,14 @@ else
                                 {
                                     if (quiz.TotalScore.HasValue)
                                     {
-                                        <p class="mb-0 mt-2"><strong>Score:</strong> @quiz.TotalScore / @quiz.TotalMarks</p>
+                                        <p class="mb-0 mt-2">
+                                            <strong>Score:</strong> @quiz.TotalScore / @quiz.TotalMarks
+                                            @if (quiz.GradedUtc.HasValue && quiz.AttemptId.HasValue)
+                                            {
+                                                <span> · </span>
+                                                <a asp-action="QuizReview" asp-route-attemptId="@quiz.AttemptId">Review checked answers</a>
+                                            }
+                                        </p>
                                     }
                                     else
                                     {

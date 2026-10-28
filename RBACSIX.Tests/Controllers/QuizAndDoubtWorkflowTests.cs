@@ -123,6 +123,96 @@ public class QuizAndDoubtWorkflowTests
     }
 
     [Fact]
+    public async Task QuizReview_ShowsCheckedAnswersOnlyForTheOwningStudent()
+    {
+        await using var db = CreateDbContext();
+        var seed = await SeedQuizAsync(db);
+        var question = seed.Quiz.Questions.Single();
+        var correctOption = question.Options.Single(option => option.IsCorrect);
+        var attempt = new QuizAttempt
+        {
+            QuizId = seed.Quiz.Id,
+            StudentProfileId = seed.Student.Id,
+            StartedUtc = DateTime.UtcNow.AddMinutes(-10),
+            ExpiresUtc = DateTime.UtcNow.AddMinutes(-5),
+            SubmittedUtc = DateTime.UtcNow.AddMinutes(-5),
+            TotalScore = 2,
+            GradedUtc = DateTime.UtcNow,
+            Answers =
+            [
+                new QuizAnswer
+                {
+                    Question = question,
+                    SelectedOption = correctOption,
+                    Score = 2,
+                    Feedback = "Correct."
+                }
+            ]
+        };
+        db.QuizAttempts.Add(attempt);
+        await db.SaveChangesAsync();
+        var attemptId = attempt.Id;
+
+        var result = Assert.IsType<ViewResult>(await CreateStudentController(db, seed.Student.UserId)
+            .QuizReview(attemptId));
+        var model = Assert.IsType<StudentQuizReviewViewModel>(result.Model);
+        var reviewedQuestion = Assert.Single(model.Questions);
+        Assert.Equal(2m, model.TotalScore);
+        Assert.Equal(2m, reviewedQuestion.Score);
+        Assert.True(reviewedQuestion.IsCorrect);
+        Assert.Equal("Correct", reviewedQuestion.CorrectOption);
+        Assert.Equal("Correct.", reviewedQuestion.Feedback);
+
+        var otherUser = new Users { Id = "student-outsider", UserName = "outsider@example.test" };
+        db.StudentProfiles.Add(new StudentProfile
+        {
+            UserId = otherUser.Id,
+            User = otherUser,
+            FullName = "Outsider"
+        });
+        await db.SaveChangesAsync();
+        var denied = await CreateStudentController(db, otherUser.Id).QuizReview(attemptId);
+        Assert.IsType<NotFoundResult>(denied);
+    }
+
+    [Fact]
+    public async Task QuizReview_RemainsUnavailableUntilManualGradingIsComplete()
+    {
+        await using var db = CreateDbContext();
+        var seed = await SeedQuizAsync(db);
+        var writtenQuestion = new QuizQuestion
+        {
+            QuizId = seed.Quiz.Id,
+            Prompt = "Explain",
+            QuestionType = QuizQuestionTypes.Written,
+            Marks = 5,
+            Order = 1
+        };
+        var attempt = new QuizAttempt
+        {
+            QuizId = seed.Quiz.Id,
+            StudentProfileId = seed.Student.Id,
+            StartedUtc = DateTime.UtcNow.AddMinutes(-10),
+            ExpiresUtc = DateTime.UtcNow.AddMinutes(-5),
+            SubmittedUtc = DateTime.UtcNow.AddMinutes(-5),
+            Answers =
+            [
+                new QuizAnswer
+                {
+                    Question = writtenQuestion,
+                    WrittenResponse = "An explanation."
+                }
+            ]
+        };
+        db.QuizAttempts.Add(attempt);
+        await db.SaveChangesAsync();
+
+        var result = await CreateStudentController(db, seed.Student.UserId).QuizReview(attempt.Id);
+
+        Assert.IsType<RedirectToActionResult>(result);
+    }
+
+    [Fact]
     public async Task SaveQuizAnswer_RejectsOptionFromAnotherQuestion()
     {
         await using var db = CreateDbContext();
@@ -599,6 +689,9 @@ public class QuizAndDoubtWorkflowTests
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task DeleteMeetingAsync(string meetingId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<string> GetMeetingHostStartUrlAsync(string meetingId, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
     }
 

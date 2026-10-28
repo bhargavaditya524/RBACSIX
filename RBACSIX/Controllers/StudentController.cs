@@ -646,6 +646,76 @@ public class StudentController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> QuizReview(int attemptId)
+    {
+        var studentId = await GetStudentProfileIdAsync();
+        if (studentId is null)
+            return NotFound();
+
+        var attempt = await _db.QuizAttempts
+            .Where(item =>
+                item.Id == attemptId &&
+                item.StudentProfileId == studentId &&
+                item.SubmittedUtc != null &&
+                item.GradedUtc != null &&
+                item.Quiz.Batch.Enrollments.Any(enrollment => enrollment.StudentProfileId == studentId))
+            .Include(item => item.Quiz)
+                .ThenInclude(quiz => quiz.Questions)
+                    .ThenInclude(question => question.Options)
+            .Include(item => item.Answers)
+                .ThenInclude(answer => answer.SelectedOption)
+            .SingleOrDefaultAsync();
+        if (attempt is null)
+        {
+            var belongsToStudent = await _db.QuizAttempts.AnyAsync(item =>
+                item.Id == attemptId &&
+                item.StudentProfileId == studentId &&
+                item.Quiz.Batch.Enrollments.Any(enrollment => enrollment.StudentProfileId == studentId));
+            if (!belongsToStudent)
+                return NotFound();
+
+            TempData["Message"] = "Quiz review will be available after Staff grades all written and file answers.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var answersByQuestion = attempt.Answers.ToDictionary(answer => answer.QuizQuestionId);
+        return View(new StudentQuizReviewViewModel
+        {
+            AttemptId = attempt.Id,
+            QuizTitle = attempt.Quiz.Title,
+            TotalScore = attempt.TotalScore ?? 0,
+            TotalMarks = attempt.Quiz.Questions.Sum(question => question.Marks),
+            SubmittedUtc = attempt.SubmittedUtc!.Value,
+            GradedUtc = attempt.GradedUtc!.Value,
+            Questions = attempt.Quiz.Questions
+                .OrderBy(question => question.Order)
+                .Select(question =>
+                {
+                    answersByQuestion.TryGetValue(question.Id, out var answer);
+                    var selectedOption = answer?.SelectedOption;
+                    var correctOption = question.Options.SingleOrDefault(option => option.IsCorrect);
+                    return new StudentQuizReviewQuestionViewModel
+                    {
+                        Prompt = question.Prompt,
+                        QuestionType = question.QuestionType,
+                        Marks = question.Marks,
+                        Score = answer?.Score ?? 0,
+                        SelectedOption = selectedOption?.Text,
+                        CorrectOption = correctOption?.Text,
+                        IsCorrect = question.QuestionType == QuizQuestionTypes.MultipleChoice
+                            ? selectedOption?.IsCorrect == true
+                            : null,
+                        WrittenResponse = answer?.WrittenResponse,
+                        OriginalFileName = answer?.OriginalFileName,
+                        AnswerId = answer?.StoredFileName is null ? null : answer.Id,
+                        Feedback = answer?.Feedback
+                    };
+                })
+                .ToList()
+        });
+    }
+
+    [HttpGet]
     public async Task<IActionResult> DownloadQuizAnswer(int answerId)
     {
         var studentId = await GetStudentProfileIdAsync();
@@ -656,6 +726,8 @@ public class StudentController : Controller
             .Where(item =>
                 item.Id == answerId &&
                 item.Attempt.StudentProfileId == studentId &&
+                item.Attempt.SubmittedUtc != null &&
+                item.Attempt.GradedUtc != null &&
                 item.Question.Quiz.Batch.Enrollments.Any(enrollment =>
                     enrollment.StudentProfileId == studentId))
             .Select(item => new { item.StoredFileName, item.OriginalFileName, item.ContentType })
