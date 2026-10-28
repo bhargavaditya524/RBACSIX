@@ -38,4 +38,3 @@ B.Tech CSE Student | ASP.NET Core Developer
 ---
 
 ⭐ If you find this project useful, consider giving it a star!
-•	Students: View course details and attendance, join live classes, and request enrollment in additional courses.
