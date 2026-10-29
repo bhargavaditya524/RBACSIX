@@ -5,7 +5,7 @@
 
 <h1>Create your Student account</h1>
 <p class="text-muted">After registration you can sign in immediately and request enrollment in courses or batches.</p>
-<form asp-action="RegisterStudent" method="post" class="col-lg-7">
+<form asp-action="RegisterStudent" method="post" class="col-lg-7 auth-form">
     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
     <div class="mb-3"><label asp-for="FullName" class="form-label"></label><input asp-for="FullName" class="form-control" autocomplete="name" /><span asp-validation-for="FullName" class="text-danger"></span></div>
     <div class="mb-3"><label asp-for="Email" class="form-label"></label><input asp-for="Email" class="form-control" autocomplete="email" /><span asp-validation-for="Email" class="text-danger"></span></div>

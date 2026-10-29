@@ -3,82 +3,111 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - RBACSIX</title>
+    <meta name="theme-color" content="#f5f7fb" />
+    <title>@ViewData["Title"] - Coaching Center</title>
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/RBACSIX.styles.css" asp-append-version="true" />
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">Coaching Center</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <header class="app-header">
+        <nav class="navbar navbar-expand-lg app-navbar" aria-label="Main navigation">
+            <div class="container-fluid app-nav-container">
+                <a class="navbar-brand app-brand" asp-controller="Home" asp-action="Index">
+                    <span class="brand-mark" aria-hidden="true">C</span>
+                    <span>Coaching<span class="brand-light">Center</span></span>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavigation"
+                        aria-controls="mainNavigation" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
+                <div class="collapse navbar-collapse" id="mainNavigation">
+                    <ul class="navbar-nav app-nav-links">
                         @if (User.IsInRole("Admin"))
                         {
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="Index">Dashboard</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="Students">Students</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="Parents">Parents</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="Staff">Staff</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="StaffApprovals">Staff approvals</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="Courses">Courses</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="Batches">Batches</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="EnrollmentRequests">Enrollment requests</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="GlobalAnnouncements">Global announcements</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Reports" asp-action="Index">Reports</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Announcements" asp-action="Index">Announcements</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Admin" asp-action="Index">Overview</a></li>
+                            <li class="nav-item dropdown">
+                                <button class="nav-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">People</button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="Students">Students</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="Parents">Parents</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="Staff">Staff</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="StaffApprovals">Staff approvals</a></li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <button class="nav-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Programs</button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="Courses">Courses</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="Batches">Batches</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="EnrollmentRequests">Enrollment requests</a></li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <button class="nav-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Insights &amp; updates</button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-controller="Reports" asp-action="Index">Reports</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Admin" asp-action="GlobalAnnouncements">Global announcements</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Announcements" asp-action="Index">Announcements</a></li>
+                                </ul>
+                            </li>
                         }
                         else if (User.IsInRole("Staff"))
                         {
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Staff" asp-action="Index">My batches</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Announcements" asp-action="Index">Announcements</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Staff" asp-action="LeaveRequests">Leave requests</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Reports" asp-action="Index">Reports</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Staff" asp-action="Index">My batches</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Staff" asp-action="LeaveRequests">Leave requests</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Reports" asp-action="Index">Reports</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Announcements" asp-action="Index">Announcements</a></li>
                         }
                         else if (User.IsInRole("Student"))
                         {
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Student" asp-action="Index">My learning</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Student" asp-action="Index" asp-fragment="quizzes">Quizzes &amp; doubts</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Student" asp-action="Learning">Materials &amp; assignments</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Student" asp-action="LeaveRequests">Leave requests</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Student" asp-action="EnrollmentRequests">Course/batch requests</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Student" asp-action="RegisterParent">Register parent</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Reports" asp-action="Index">My reports</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Announcements" asp-action="Index">Announcements</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Student" asp-action="Index">My learning</a></li>
+                            <li class="nav-item dropdown">
+                                <button class="nav-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Learning tools</button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-controller="Student" asp-action="Index" asp-fragment="quizzes">Quizzes &amp; doubts</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Student" asp-action="Learning">Materials &amp; assignments</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Student" asp-action="LeaveRequests">Leave requests</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Student" asp-action="EnrollmentRequests">Course/batch requests</a></li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <button class="nav-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">More</button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-controller="Student" asp-action="RegisterParent">Register parent</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Reports" asp-action="Index">My reports</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Announcements" asp-action="Index">Announcements</a></li>
+                                </ul>
+                            </li>
                         }
                         else if (User.IsInRole("Parent"))
                         {
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Parent" asp-action="Index">Children</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Parent" asp-action="LeaveRequests">Leave requests</a></li>
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Announcements" asp-action="Index">Announcements</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Parent" asp-action="Index">Children</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Parent" asp-action="LeaveRequests">Leave requests</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Announcements" asp-action="Index">Announcements</a></li>
                         }
                         else
                         {
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Home" asp-action="Index">Home</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index">Home</a></li>
                         }
                     </ul>
+                    <partial name="_loginPartial" />
                 </div>
             </div>
-      
-            <partial name="_loginPartial" />
-         
         </nav>
     </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+    <div class="container-fluid app-page-container">
+        <main id="main-content" role="main" class="app-main">
             @RenderBody()
         </main>
     </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - RBACSIX - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+    <footer class="app-footer">
+        <div class="container-fluid app-page-container d-flex flex-wrap justify-content-between gap-2">
+            <span>&copy; 2026 Coaching Center</span>
+            <a asp-controller="Home" asp-action="Privacy">Privacy</a>
         </div>
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>

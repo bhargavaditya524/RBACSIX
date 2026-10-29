@@ -2,12 +2,12 @@
     ViewData["Title"] = "Coaching Center";
 }
 
-<section class="py-5">
+<section class="home-hero">
     <div class="row align-items-center">
-        <div class="col-lg-8">
-            <p class="text-uppercase text-primary fw-semibold">Coaching Center Portal</p>
-            <h1 class="display-5 fw-bold">One place to manage learning and teaching.</h1>
-            <p class="lead text-muted">Students can follow their batches and progress. Staff can manage class attendance and results. Administrators coordinate people, courses, and schedules.</p>
+        <div class="col-lg-8 col-xl-7">
+            <p class="eyebrow">YOUR COACHING COMMUNITY</p>
+            <h1 class="display-5 fw-bold">A clearer path to learning and teaching.</h1>
+            <p class="lead text-muted">Keep classes, progress, and communication in one welcoming workspace—for students, families, staff, and administrators.</p>
             @if (User.Identity?.IsAuthenticated != true)
             {
                 <a class="btn btn-primary btn-lg" asp-controller="Account" asp-action="Login">Sign in</a>
