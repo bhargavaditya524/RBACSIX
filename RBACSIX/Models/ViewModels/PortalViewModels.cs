@@ -15,6 +15,30 @@ public class LoginViewModel
     public bool RememberMe { get; set; }
 }
 
+public class ForgotPasswordViewModel
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+}
+
+public class ResetPasswordViewModel
+{
+    [Required]
+    public string UserId { get; set; } = string.Empty;
+
+    [Required]
+    public string Token { get; set; } = string.Empty;
+
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required, StringLength(100, MinimumLength = 8), DataType(DataType.Password)]
+    public string Password { get; set; } = string.Empty;
+
+    [Required, DataType(DataType.Password), Compare(nameof(Password))]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
+
 public class FirstAdminSetupViewModel
 {
     [Required, StringLength(120)]
@@ -166,6 +190,7 @@ public class ScheduledClassSummaryViewModel
     public int DurationMinutes { get; set; }
     public string ZoomMeetingId { get; set; } = string.Empty;
     public string JoinUrl { get; set; } = string.Empty;
+    public bool CanJoinAsHost { get; set; }
     public bool IsUpcoming { get; set; }
     public bool IsInProgress { get; set; }
     public bool CanDelete { get; set; }
@@ -442,6 +467,32 @@ public class StudentQuizSummaryViewModel
     public DateTime? ExpiresUtc { get; set; }
     public decimal? TotalScore { get; set; }
     public DateTime? GradedUtc { get; set; }
+}
+
+public class StudentQuizReviewViewModel
+{
+    public int AttemptId { get; set; }
+    public string QuizTitle { get; set; } = string.Empty;
+    public decimal TotalScore { get; set; }
+    public decimal TotalMarks { get; set; }
+    public DateTime SubmittedUtc { get; set; }
+    public DateTime GradedUtc { get; set; }
+    public List<StudentQuizReviewQuestionViewModel> Questions { get; set; } = new();
+}
+
+public class StudentQuizReviewQuestionViewModel
+{
+    public string Prompt { get; set; } = string.Empty;
+    public string QuestionType { get; set; } = string.Empty;
+    public decimal Marks { get; set; }
+    public decimal Score { get; set; }
+    public string? SelectedOption { get; set; }
+    public string? CorrectOption { get; set; }
+    public bool? IsCorrect { get; set; }
+    public string? WrittenResponse { get; set; }
+    public string? OriginalFileName { get; set; }
+    public int? AnswerId { get; set; }
+    public string? Feedback { get; set; }
 }
 
 public class StudentDoubtSummaryViewModel

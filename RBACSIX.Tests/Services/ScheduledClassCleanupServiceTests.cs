@@ -255,6 +255,9 @@ public class ScheduledClassCleanupServiceTests
 
             return Task.CompletedTask;
         }
+
+        public Task<string> GetMeetingHostStartUrlAsync(string meetingId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class StubTempDataProvider : ITempDataProvider

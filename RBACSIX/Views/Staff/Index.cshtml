@@ -44,6 +44,12 @@ else
                             <li class="mb-2">
                                 <strong>@scheduledClass.Title</strong><br />
                                 <span class="text-muted">@scheduledClass.StartTimeLocal.ToString("f") (@scheduledClass.DurationMinutes min)</span>
+                                @if (scheduledClass.CanJoinAsHost)
+                                {
+                                    <a class="btn btn-success btn-sm ms-2"
+                                       asp-action="JoinScheduledClass"
+                                       asp-route-id="@scheduledClass.Id">Join as host</a>
+                                }
                                 @if (scheduledClass.CanDelete)
                                 {
                                     <form asp-action="DeleteScheduledClass" method="post" class="d-inline">

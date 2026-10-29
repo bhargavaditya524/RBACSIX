@@ -20,6 +20,9 @@ builder.Services.AddIdentity<Users, IdentityRole>(options =>
 })
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
+builder.Services.Configure<SmtpEmailOptions>(builder.Configuration.GetSection("Smtp"));
+builder.Services.Configure<PasswordResetOptions>(builder.Configuration.GetSection("PasswordReset"));
+builder.Services.AddTransient<IPasswordResetEmailSender, SmtpEmailSender>();
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("ApprovedStaff", policy =>
@@ -41,6 +44,19 @@ builder.Services.ConfigureApplicationCookie(Options =>
     Options.LoginPath = "/Account/Login";
 } );
 var app = builder.Build();
+
+if (string.IsNullOrWhiteSpace(app.Configuration["PasswordReset:PublicBaseUrl"]))
+{
+    app.Logger.LogWarning(
+        "Password reset emails are disabled because PasswordReset:PublicBaseUrl is not configured.");
+}
+
+var smtpOptions = app.Services.GetRequiredService<IOptions<SmtpEmailOptions>>().Value;
+if (!smtpOptions.IsConfigured)
+{
+    app.Logger.LogWarning(
+        "Password reset email delivery is disabled because Smtp:Host or Smtp:FromAddress is not configured.");
+}
 
 var zoomOptions = app.Services.GetRequiredService<IOptions<ZoomOptions>>().Value;
 var zoomConfiguration = new[] { zoomOptions.AccountId, zoomOptions.ClientId, zoomOptions.ClientSecret };

@@ -32,7 +32,7 @@ public class ZoomMeetingServiceTests
 
             meetingRequest = await CaptureAsync(request, cancellationToken);
             return JsonResponse(HttpStatusCode.Created, """
-                {"id":123456789,"join_url":"https://zoom.us/j/123456789"}
+                {"id":123456789,"join_url":"https://zoom.us/j/123456789","start_url":"https://us02web.zoom.us/s/123456789?zak=host"}
                 """);
         });
         var service = CreateService(handler);
@@ -63,6 +63,35 @@ public class ZoomMeetingServiceTests
         Assert.Equal(60, body.RootElement.GetProperty("duration").GetInt32());
         Assert.Equal("Asia/Kolkata", body.RootElement.GetProperty("timezone").GetString());
         Assert.False(body.RootElement.TryGetProperty("start_url", out _));
+    }
+
+    [Fact]
+    public async Task GetMeetingHostStartUrlAsync_RetrievesCurrentHostLinkFromZoom()
+    {
+        CapturedRequest? meetingRequest = null;
+        var handler = new StubHttpMessageHandler(async (request, cancellationToken) =>
+        {
+            if (request.RequestUri!.AbsoluteUri == "https://zoom.us/oauth/token")
+            {
+                return JsonResponse(HttpStatusCode.OK, """
+                    {"access_token":"test-access-token","token_type":"bearer","expires_in":3600}
+                    """);
+            }
+
+            meetingRequest = await CaptureAsync(request, cancellationToken);
+            return JsonResponse(HttpStatusCode.OK, """
+                {"id":123456789,"start_url":"https://us02web.zoom.us/s/123456789?zak=current-host-token"}
+                """);
+        });
+        var service = CreateService(handler);
+
+        var hostStartUrl = await service.GetMeetingHostStartUrlAsync("123456789");
+
+        Assert.Equal("https://us02web.zoom.us/s/123456789?zak=current-host-token", hostStartUrl);
+        Assert.NotNull(meetingRequest);
+        Assert.Equal(HttpMethod.Get, meetingRequest.Method);
+        Assert.Equal("https://api.zoom.us/v2/meetings/123456789", meetingRequest.RequestUri);
+        Assert.StartsWith("Bearer ", meetingRequest.Authorization);
     }
 
     [Fact]
