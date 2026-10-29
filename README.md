@@ -1,5 +1,24 @@
 
 
+## Password recovery email configuration
+
+The login page includes password recovery. Configure an SMTP relay and the application's public HTTPS URL before enabling it in production. Keep SMTP credentials in user secrets during development or environment variables in production; do not commit them.
+
+For local development, set these values from the repository root, replacing the placeholders with your provider's settings:
+
+```powershell
+dotnet user-secrets set "Smtp:Host" "smtp.example.com" --project .\RBACSIX\RBACSIX.csproj
+dotnet user-secrets set "Smtp:Port" "587" --project .\RBACSIX\RBACSIX.csproj
+dotnet user-secrets set "Smtp:EnableSsl" "true" --project .\RBACSIX\RBACSIX.csproj
+dotnet user-secrets set "Smtp:UserName" "your-smtp-user" --project .\RBACSIX\RBACSIX.csproj
+dotnet user-secrets set "Smtp:Password" "your-smtp-password" --project .\RBACSIX\RBACSIX.csproj
+dotnet user-secrets set "Smtp:FromAddress" "no-reply@example.com" --project .\RBACSIX\RBACSIX.csproj
+dotnet user-secrets set "Smtp:FromName" "Coaching Portal" --project .\RBACSIX\RBACSIX.csproj
+dotnet user-secrets set "PasswordReset:PublicBaseUrl" "https://portal.example.com" --project .\RBACSIX\RBACSIX.csproj
+```
+
+In production, use the matching environment variables (for example, `Smtp__Host` and `PasswordReset__PublicBaseUrl`). A reset request always shows a generic confirmation. Development may show the generated reset link on that page; non-development environments never expose it.
+
 ## 📸 Screenshots
 
 

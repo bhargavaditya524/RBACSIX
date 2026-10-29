@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using RBACSIX.Data;
 using RBACSIX.Models;
 using RBACSIX.Models.ViewModels;
+using RBACSIX.Services;
 using System.Data;
 
 namespace RBACSIX.Controllers;
@@ -14,15 +17,27 @@ public class AccountController : Controller
     private readonly SignInManager<Users> _signInManager;
     private readonly UserManager<Users> _userManager;
     private readonly AppDbContext _db;
+    private readonly IPasswordResetEmailSender _emailSender;
+    private readonly PasswordResetOptions _passwordResetOptions;
+    private readonly IWebHostEnvironment _environment;
+    private readonly ILogger<AccountController> _logger;
 
     public AccountController(
         SignInManager<Users> signInManager,
         UserManager<Users> userManager,
-        AppDbContext db)
+        AppDbContext db,
+        IPasswordResetEmailSender emailSender,
+        IOptions<PasswordResetOptions> passwordResetOptions,
+        IWebHostEnvironment environment,
+        ILogger<AccountController> logger)
     {
         _signInManager = signInManager;
         _userManager = userManager;
         _db = db;
+        _emailSender = emailSender;
+        _passwordResetOptions = passwordResetOptions.Value;
+        _environment = environment;
+        _logger = logger;
     }
 
     [AllowAnonymous]
@@ -133,6 +148,131 @@ public class AccountController : Controller
             return RedirectToAction("Index", "Parent");
 
         return RedirectToAction("Index", "Home");
+    }
+
+    [AllowAnonymous]
+    [HttpGet]
+    public IActionResult ForgotPassword() => View(new ForgotPasswordViewModel());
+
+    [AllowAnonymous]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
+    {
+        if (!ModelState.IsValid)
+            return View(model);
+
+        var user = await _userManager.FindByEmailAsync(model.Email);
+        if (user is not null)
+        {
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var callbackUrl = BuildPasswordResetUrl(user.Id, token);
+
+            if (callbackUrl is not null)
+            {
+                try
+                {
+                    await _emailSender.SendEmailAsync(
+                        user.Email!,
+                        "Reset your coaching portal password",
+                        $"<p>To reset your password, <a href=\"{System.Text.Encodings.Web.HtmlEncoder.Default.Encode(callbackUrl)}\">open this secure link</a>.</p><p>If you did not request a reset, you can ignore this message.</p>");
+                }
+                catch (Exception exception) when (
+                    exception is InvalidOperationException or ArgumentException or System.Net.Mail.SmtpException or
+                    System.Security.Authentication.AuthenticationException)
+                {
+                    _logger.LogError(exception, "Password reset email could not be sent.");
+                }
+
+                if (_environment.IsDevelopment())
+                    TempData["DevelopmentResetUrl"] = callbackUrl;
+            }
+            else
+            {
+                _logger.LogError("Password reset URL could not be generated.");
+            }
+        }
+
+        return RedirectToAction(nameof(ForgotPasswordConfirmation));
+    }
+
+    [AllowAnonymous]
+    [HttpGet]
+    public IActionResult ForgotPasswordConfirmation()
+    {
+        ViewData["DevelopmentResetUrl"] = TempData["DevelopmentResetUrl"];
+        return View();
+    }
+
+    [AllowAnonymous]
+    [HttpGet]
+    public async Task<IActionResult> ResetPassword(string? userId, string? token)
+    {
+        if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(token))
+            return RedirectToAction(nameof(ResetPasswordConfirmation));
+
+        var model = new ResetPasswordViewModel
+        {
+            UserId = userId,
+            Token = token
+        };
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null)
+            return RedirectToAction(nameof(ResetPasswordConfirmation));
+
+        model.Email = user.Email ?? string.Empty;
+        return View(model);
+    }
+
+    [AllowAnonymous]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+    {
+        if (!ModelState.IsValid)
+            return View(model);
+
+        var user = await _userManager.FindByIdAsync(model.UserId);
+        if (user is null ||
+            !string.Equals(user.Email, model.Email, StringComparison.OrdinalIgnoreCase))
+            return RedirectToAction(nameof(ResetPasswordConfirmation));
+
+        var result = await _userManager.ResetPasswordAsync(user, model.Token, model.Password);
+        if (result.Succeeded)
+            return RedirectToAction(nameof(ResetPasswordConfirmation));
+
+        foreach (var error in result.Errors)
+            ModelState.AddModelError(string.Empty, error.Description);
+        return View(model);
+    }
+
+    [AllowAnonymous]
+    [HttpGet]
+    public IActionResult ResetPasswordConfirmation() => View();
+
+    private string? BuildPasswordResetUrl(string userId, string token)
+    {
+        if (!Uri.TryCreate(_passwordResetOptions.PublicBaseUrl, UriKind.Absolute, out var publicBaseUri) ||
+            !string.IsNullOrEmpty(publicBaseUri.UserInfo) ||
+            publicBaseUri.AbsolutePath != "/" ||
+            !string.IsNullOrEmpty(publicBaseUri.Query) ||
+            !string.IsNullOrEmpty(publicBaseUri.Fragment) ||
+            (publicBaseUri.Scheme != Uri.UriSchemeHttps &&
+             !(_environment.IsDevelopment() && publicBaseUri.Scheme == Uri.UriSchemeHttp)))
+        {
+            _logger.LogError(
+                "Password reset email was not sent because PasswordReset:PublicBaseUrl is missing or invalid.");
+            return null;
+        }
+
+        return Url.Action(new UrlActionContext
+        {
+            Action = nameof(ResetPassword),
+            Controller = "Account",
+            Values = new { userId, token },
+            Protocol = publicBaseUri.Scheme,
+            Host = publicBaseUri.Authority
+        });
     }
 
     [AllowAnonymous]

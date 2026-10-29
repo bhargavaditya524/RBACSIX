@@ -1,12 +1,21 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using RBACSIX.Authorization;
@@ -27,7 +36,7 @@ public class RegistrationAndEnrollmentRequestTests
         db.Roles.Add(new IdentityRole("Staff") { NormalizedName = "STAFF" });
         await db.SaveChangesAsync();
         var userManager = CreateUserManager(db);
-        var controller = new AccountController(null!, userManager, db);
+        var controller = CreateAccountController(null, userManager, db);
 
         var result = await controller.RegisterStaff(new StaffRegistrationViewModel
         {
@@ -96,7 +105,7 @@ public class RegistrationAndEnrollmentRequestTests
         db.Roles.Add(new IdentityRole("Student") { NormalizedName = "STUDENT" });
         await db.SaveChangesAsync();
         var userManager = CreateUserManager(db);
-        var controller = new AccountController(new StubSignInManager(userManager), userManager, db);
+        var controller = CreateAccountController(new StubSignInManager(userManager), userManager, db);
 
         var result = await controller.RegisterStudent(new StudentRegistrationViewModel
         {
@@ -113,6 +122,177 @@ public class RegistrationAndEnrollmentRequestTests
         var user = await userManager.FindByIdAsync(profile.UserId);
         Assert.NotNull(user);
         Assert.Equal(["Student"], await userManager.GetRolesAsync(user));
+    }
+
+    [Fact]
+    public async Task ForgotPassword_UsesGenericResponseAndEmailsExistingUnconfirmedAccount()
+    {
+        await using var db = CreateDbContext();
+        var userManager = CreateUserManager(db);
+        var user = new Users
+        {
+            UserName = "student@example.test",
+            Email = "student@example.test",
+            EmailConfirmed = false
+        };
+        Assert.True((await userManager.CreateAsync(user, "OldStrongPass1!")).Succeeded);
+        var emailSender = new StubEmailSender();
+        var controller = CreateAccountController(null, userManager, db, emailSender);
+
+        var result = await controller.ForgotPassword(new ForgotPasswordViewModel
+        {
+            Email = "student@example.test"
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(AccountController.ForgotPasswordConfirmation), redirect.ActionName);
+        var sentEmail = Assert.Single(emailSender.SentEmails);
+        Assert.Equal("student@example.test", sentEmail.Email);
+        Assert.Contains("ResetPassword", sentEmail.Body);
+        Assert.Contains("https://portal.example.test", sentEmail.Body);
+        Assert.DoesNotContain("attacker.example", sentEmail.Body);
+    }
+
+    [Fact]
+    public async Task ForgotPassword_UnknownAccountGetsSameGenericConfirmationWithoutEmail()
+    {
+        await using var db = CreateDbContext();
+        var emailSender = new StubEmailSender();
+        var controller = CreateAccountController(null, CreateUserManager(db), db, emailSender);
+
+        var result = await controller.ForgotPassword(new ForgotPasswordViewModel
+        {
+            Email = "missing@example.test"
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(AccountController.ForgotPasswordConfirmation), redirect.ActionName);
+        Assert.Empty(emailSender.SentEmails);
+    }
+
+    [Fact]
+    public async Task ForgotPassword_MissingPublicBaseUrlKeepsGenericResponseAndSkipsEmail()
+    {
+        await using var db = CreateDbContext();
+        var userManager = CreateUserManager(db);
+        var user = new Users
+        {
+            UserName = "student@example.test",
+            Email = "student@example.test"
+        };
+        Assert.True((await userManager.CreateAsync(user, "OldStrongPass1!")).Succeeded);
+        var emailSender = new StubEmailSender();
+        var controller = CreateAccountController(
+            null,
+            userManager,
+            db,
+            emailSender,
+            publicBaseUrl: null);
+
+        var result = await controller.ForgotPassword(new ForgotPasswordViewModel
+        {
+            Email = "student@example.test"
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(AccountController.ForgotPasswordConfirmation), redirect.ActionName);
+        Assert.Empty(emailSender.SentEmails);
+    }
+
+    [Fact]
+    public void PasswordResetOptions_BindPublicBaseUrlFromConfigurationSection()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["PasswordReset:PublicBaseUrl"] = "https://localhost:7155"
+            })
+            .Build();
+
+        var options = configuration.GetSection("PasswordReset").Get<PasswordResetOptions>();
+
+        Assert.Equal("https://localhost:7155", options?.PublicBaseUrl);
+    }
+
+    [Fact]
+    public async Task ForgotPassword_DoesNotExposeResetLinkOutsideDevelopment()
+    {
+        await using var db = CreateDbContext();
+        var userManager = CreateUserManager(db);
+        var user = new Users
+        {
+            UserName = "student@example.test",
+            Email = "student@example.test"
+        };
+        Assert.True((await userManager.CreateAsync(user, "OldStrongPass1!")).Succeeded);
+        var controller = CreateAccountController(
+            null,
+            userManager,
+            db,
+            environmentName: "Production");
+
+        await controller.ForgotPassword(new ForgotPasswordViewModel
+        {
+            Email = "student@example.test"
+        });
+        controller.ForgotPasswordConfirmation();
+
+        Assert.Null(controller.ViewData["DevelopmentResetUrl"]);
+    }
+
+    [Fact]
+    public async Task ResetPassword_ValidTokenChangesPassword()
+    {
+        await using var db = CreateDbContext();
+        var userManager = CreateUserManager(db);
+        var user = new Users
+        {
+            UserName = "student@example.test",
+            Email = "student@example.test"
+        };
+        Assert.True((await userManager.CreateAsync(user, "OldStrongPass1!")).Succeeded);
+        var token = await userManager.GeneratePasswordResetTokenAsync(user);
+        var controller = CreateAccountController(null, userManager, db);
+
+        var result = await controller.ResetPassword(new ResetPasswordViewModel
+        {
+            UserId = user.Id,
+            Email = user.Email,
+            Token = token,
+            Password = "NewStrongPass2!",
+            ConfirmPassword = "NewStrongPass2!"
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(AccountController.ResetPasswordConfirmation), redirect.ActionName);
+        Assert.True((await userManager.CheckPasswordAsync(user, "NewStrongPass2!")));
+    }
+
+    [Fact]
+    public async Task ResetPassword_InvalidTokenDoesNotChangePassword()
+    {
+        await using var db = CreateDbContext();
+        var userManager = CreateUserManager(db);
+        var user = new Users
+        {
+            UserName = "student@example.test",
+            Email = "student@example.test"
+        };
+        Assert.True((await userManager.CreateAsync(user, "OldStrongPass1!")).Succeeded);
+        var controller = CreateAccountController(null, userManager, db);
+
+        var result = await controller.ResetPassword(new ResetPasswordViewModel
+        {
+            UserId = user.Id,
+            Email = user.Email,
+            Token = "not-a-valid-token",
+            Password = "NewStrongPass2!",
+            ConfirmPassword = "NewStrongPass2!"
+        });
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.NotEmpty(view.ViewData.ModelState);
+        Assert.True(await userManager.CheckPasswordAsync(user, "OldStrongPass1!"));
     }
 
     [Fact]
@@ -251,16 +431,58 @@ public class RegistrationAndEnrollmentRequestTests
 
     private static UserManager<Users> CreateUserManager(AppDbContext db)
     {
+        var identityOptions = new IdentityOptions();
+        identityOptions.Tokens.ProviderMap.Add(
+            TokenOptions.DefaultProvider,
+            new TokenProviderDescriptor(typeof(DataProtectorTokenProvider<Users>)));
+        identityOptions.Tokens.PasswordResetTokenProvider = TokenOptions.DefaultProvider;
+        var tokenServiceCollection = new ServiceCollection();
+        tokenServiceCollection.AddDataProtection();
+        tokenServiceCollection.AddLogging();
+        tokenServiceCollection.AddOptions();
+        tokenServiceCollection.AddTransient<DataProtectorTokenProvider<Users>>();
+        var tokenServices = tokenServiceCollection.BuildServiceProvider();
         return new UserManager<Users>(
             new UserStore<Users, IdentityRole, AppDbContext>(db),
-            Options.Create(new IdentityOptions()),
+            Options.Create(identityOptions),
             new PasswordHasher<Users>(),
             [new UserValidator<Users>()],
             [new PasswordValidator<Users>()],
             new UpperInvariantLookupNormalizer(),
             new IdentityErrorDescriber(),
-            null!,
+            tokenServices,
             NullLogger<UserManager<Users>>.Instance);
+    }
+
+    private static AccountController CreateAccountController(
+        SignInManager<Users>? signInManager,
+        UserManager<Users> userManager,
+        AppDbContext db,
+        StubEmailSender? emailSender = null,
+        string environmentName = "Development",
+        string? publicBaseUrl = "https://portal.example.test")
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Host = new HostString("attacker.example");
+        var controller = new AccountController(
+            signInManager!,
+            userManager,
+            db,
+            emailSender ?? new StubEmailSender(),
+            Options.Create(new PasswordResetOptions { PublicBaseUrl = publicBaseUrl }),
+            new StubWebHostEnvironment(environmentName),
+            NullLogger<AccountController>.Instance)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = httpContext,
+                RouteData = new RouteData(),
+                ActionDescriptor = new ControllerActionDescriptor()
+            },
+            Url = new StubUrlHelper(),
+            TempData = new TempDataDictionary(httpContext, new StubTempDataProvider())
+        };
+        return controller;
     }
 
     private static StudentController CreateStudentController(AppDbContext db, string userId)
@@ -354,6 +576,46 @@ public class RegistrationAndEnrollmentRequestTests
     {
         public Task<ClaimsPrincipal> CreateAsync(Users user) =>
             Task.FromResult(new ClaimsPrincipal(new ClaimsIdentity()));
+    }
+
+    private sealed class StubEmailSender : IPasswordResetEmailSender
+    {
+        public List<(string Email, string Subject, string Body)> SentEmails { get; } = [];
+
+        public Task SendEmailAsync(string email, string subject, string htmlMessage)
+        {
+            SentEmails.Add((email, subject, htmlMessage));
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class StubUrlHelper : IUrlHelper
+    {
+        public ActionContext ActionContext { get; } =
+            new(new DefaultHttpContext(), new RouteData(), new ActionDescriptor());
+
+        public string? Action(UrlActionContext actionContext) =>
+            $"{actionContext.Protocol}://{actionContext.Host}/Account/ResetPassword";
+
+        public string? Content(string? contentPath) => contentPath;
+        public bool IsLocalUrl(string? url) => url?.StartsWith('/') == true;
+        public string? Link(string? routeName, object? values) => null;
+        public string? RouteUrl(UrlRouteContext routeContext) => null;
+    }
+
+    private sealed class StubWebHostEnvironment : IWebHostEnvironment
+    {
+        public StubWebHostEnvironment(string environmentName)
+        {
+            EnvironmentName = environmentName;
+        }
+
+        public string EnvironmentName { get; set; }
+        public string ApplicationName { get; set; } = "RBACSIX.Tests";
+        public string WebRootPath { get; set; } = string.Empty;
+        public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
+        public string ContentRootPath { get; set; } = string.Empty;
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 
     private sealed class StubPrivateFileStorage : IPrivateFileStorage
