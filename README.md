@@ -1,3 +1,4 @@
+Role Based Access Control used in coaching management
 
 
 ## Password recovery email configuration
@@ -47,35 +48,18 @@ After deploying the new schema, apply the generated assistant migration using th
 
 <img width="1905" height="775" alt="image" src="https://github.com/user-attachments/assets/5715967f-c41f-4a47-91c1-b02d9ea0eb90" />
 
+### Login Page (Responsive)
+<img width="326" height="586" alt="login page" src="https://github.com/user-attachments/assets/5a2ce376-e01a-4717-ba0f-d3ba43490f8c" />
 
 ### Admin Dashboard
-
-<img width="1897" height="537" alt="image" src="https://github.com/user-attachments/assets/b5088c8c-b27f-431c-bfe3-06f1bcd08b14" />
+<img width="1862" height="776" alt="admin dashboard" src="https://github.com/user-attachments/assets/0033acfe-9e3b-4fe0-83c0-17e504350015" />
 
 ### Staff Dashboard
-<img width="1867" height="781" alt="image" src="https://github.com/user-attachments/assets/2ce7e782-f559-4acd-be03-e5a47c81909f" />
-<img width="911" height="700" alt="image" src="https://github.com/user-attachments/assets/87610df7-48e2-4415-a40d-e4fb15c54102" />
+<img width="1507" height="780" alt="staff dashboard" src="https://github.com/user-attachments/assets/38e32dd6-2d15-4187-98e5-0cf35359a313" />
+<img width="992" height="777" alt="staff dashboard 2" src="https://github.com/user-attachments/assets/2e61b2cc-e4f8-4e92-80c5-78ba5af1fa0d" />
 
 ### Student Dashboard
-<img width="1865" height="741" alt="image" src="https://github.com/user-attachments/assets/ac042398-cabc-4d33-8951-650a5942c6ca" />
+<img width="1460" height="777" alt="student dashbord" src="https://github.com/user-attachments/assets/33e1b5b8-63c3-4b51-a13b-08bf3145bf04" />
 
 ### Parent/Guardian Dashboard
-
-<img width="1872" height="471" alt="image" src="https://github.com/user-attachments/assets/a93897d7-6963-43c0-a12b-6a04f83a6e71" />
-
-
-## 🔮 Future Improvements
-- [ ] Audit logs
-- [ ] Deployment to Azure
-
-## 👨‍💻 Author
-
-**Aditya Bhargava**
-
-B.Tech CSE Student | ASP.NET Core Developer
-
-
----
-
-⭐ If you find this project useful, consider giving it a star!
-•	Students: View course details and attendance, join live classes, and request enrollment in additional courses.
+<img width="1847" height="787" alt="guardian dashboard" src="https://github.com/user-attachments/assets/8283a42b-d290-4954-887f-491c65811383" />
