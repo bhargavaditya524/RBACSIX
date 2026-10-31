@@ -364,3 +364,4 @@ FodyWeavers.xsd
 
 # Uploaded coaching content (kept outside the public web root)
 RBACSIX/App_Data/uploads/
+RBACSIX/App_Data/knowledge_base/

@@ -1,0 +1,98 @@
+@model RBACSIX.Models.ViewModels.KnowledgeDocumentListViewModel
+@{
+    ViewData["Title"] = "Assistant knowledge";
+}
+
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Admin tools</p>
+        <h1>Assistant knowledge</h1>
+        <p class="text-secondary mb-0">Manage policy and reference documents available to authenticated portal users.</p>
+    </div>
+</section>
+
+@if (TempData["Success"] is string success)
+{
+    <div class="alert alert-success" role="status">@success</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+<div class="row g-4">
+    <div class="col-12 col-lg-5">
+        <section class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="h5">Add a reference document</h2>
+                <p class="small text-secondary">
+                    Indexed documents become searchable by Admins, Staff, Students, and Parents. Upload only center-wide policies or material approved for every signed-in role.
+                </p>
+                <form asp-action="Upload" method="post" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    <label class="form-label fw-semibold" for="knowledge-file">PDF, DOCX, or TXT (up to 25 MB)</label>
+                    <input id="knowledge-file" class="form-control mb-3" type="file" name="file"
+                           accept=".pdf,.docx,.txt,application/pdf,text/plain" required />
+                    <button class="btn btn-primary" type="submit">Upload and index</button>
+                </form>
+                <p class="small text-secondary mt-3 mb-0">
+                    Content is stored in the application data directory and sent to the configured AI provider for embeddings and answer generation.
+                </p>
+            </div>
+        </section>
+    </div>
+    <div class="col-12 col-lg-7">
+        <section class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="h5 mb-3">Managed documents</h2>
+                @if (Model.Documents.Count == 0)
+                {
+                    <p class="text-secondary mb-0">No documents have been added.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Document</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Added</th>
+                                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var document in Model.Documents)
+                                {
+                                    <tr>
+                                        <td>
+                                            <span class="fw-semibold">@document.FileName</span>
+                                            @if (document.Status == "Failed" && !string.IsNullOrWhiteSpace(document.Error))
+                                            {
+                                                <span class="d-block small text-danger">@document.Error</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge @(document.Status == "Indexed" ? "text-bg-success" : document.Status == "Failed" ? "text-bg-danger" : "text-bg-secondary")">
+                                                @document.Status
+                                            </span>
+                                        </td>
+                                        <td class="text-nowrap">@document.UploadedUtc.ToLocalTime().ToString("g")</td>
+                                        <td class="text-end">
+                                            <form asp-action="Delete" method="post"
+                                                  onsubmit="return confirm('Delete this document and its indexed content?');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@document.Id" />
+                                                <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </section>
+    </div>
+</div>

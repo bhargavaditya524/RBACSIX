@@ -33,6 +33,8 @@ namespace RBACSIX.Data
         public DbSet<EnrollmentCharge> EnrollmentCharges => Set<EnrollmentCharge>();
         public DbSet<EnrollmentPayment> EnrollmentPayments => Set<EnrollmentPayment>();
         public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
+        public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
+        public DbSet<KnowledgeChunk> KnowledgeChunks => Set<KnowledgeChunk>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -314,6 +316,23 @@ namespace RBACSIX.Data
                 .HasOne(request => request.Enrollment)
                 .WithMany(enrollment => enrollment.LeaveRequests)
                 .HasForeignKey(request => request.EnrollmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<KnowledgeDocument>()
+                .HasIndex(document => document.Sha256)
+                .IsUnique();
+
+            builder.Entity<KnowledgeDocument>()
+                .HasIndex(document => new { document.Status, document.UploadedUtc });
+
+            builder.Entity<KnowledgeChunk>()
+                .HasIndex(chunk => new { chunk.KnowledgeDocumentId, chunk.ChunkIndex })
+                .IsUnique();
+
+            builder.Entity<KnowledgeChunk>()
+                .HasOne(chunk => chunk.KnowledgeDocument)
+                .WithMany(document => document.Chunks)
+                .HasForeignKey(chunk => chunk.KnowledgeDocumentId)
                 .OnDelete(DeleteBehavior.Cascade);
         }
     }

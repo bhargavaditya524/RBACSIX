@@ -1,0 +1,111 @@
+@{
+    ViewData["Title"] = "Coaching assistant";
+}
+
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Knowledge, grounded in your access</p>
+        <h1>Coaching assistant</h1>
+        <p class="text-secondary mb-0">Ask about coaching records you can access or the center's approved reference documents.</p>
+    </div>
+</section>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-xl-9">
+        <section class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-4 px-4">
+                <h2 class="h5 mb-1">Ask a question</h2>
+                <p class="small text-secondary mb-0">
+                    Answers are generated from current portal records and Admin-managed documents. Verify important details with your coach or administrator.
+                </p>
+            </div>
+            <div class="card-body px-4">
+                <div id="assistant-log" class="assistant-log mb-3" role="log" aria-live="polite" aria-relevant="additions text">
+                    <p class="assistant-message assistant-response">
+                        Hello! I can help with information available to your account. Answers include references when the evidence supports them.
+                    </p>
+                </div>
+                <form id="assistant-form">
+                    @Html.AntiForgeryToken()
+                    <label class="form-label fw-semibold" for="assistant-question">Your question</label>
+                    <div class="input-group">
+                        <textarea id="assistant-question" class="form-control" rows="2" maxlength="4000"
+                                  placeholder="For example: What is my fee balance?" required></textarea>
+                        <button id="assistant-submit" class="btn btn-primary px-4" type="submit">Ask</button>
+                    </div>
+                    <div id="assistant-status" class="small text-secondary mt-2" role="status"></div>
+                </form>
+            </div>
+        </section>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (() => {
+            const form = document.getElementById("assistant-form");
+            const input = document.getElementById("assistant-question");
+            const log = document.getElementById("assistant-log");
+            const status = document.getElementById("assistant-status");
+            const submit = document.getElementById("assistant-submit");
+
+            function addMessage(text, kind) {
+                const message = document.createElement("div");
+                message.className = `assistant-message ${kind}`;
+                const body = document.createElement("p");
+                body.className = "mb-0";
+                body.textContent = text;
+                message.appendChild(body);
+                log.appendChild(message);
+                return message;
+            }
+
+            function addSources(message, sources) {
+                if (!sources || sources.length === 0) return;
+                const list = document.createElement("ul");
+                list.className = "assistant-sources small text-secondary mb-0";
+                for (const source of sources) {
+                    const item = document.createElement("li");
+                    item.textContent = `${source.reference} · ${source.source}${source.pageNumber ? `, page ${source.pageNumber}` : ""}`;
+                    list.appendChild(item);
+                }
+                message.appendChild(list);
+            }
+
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                const question = input.value.trim();
+                if (!question) return;
+
+                addMessage(question, "assistant-question-message");
+                input.value = "";
+                submit.disabled = true;
+                status.textContent = "Looking through your authorized records and reference documents…";
+                const responseMessage = addMessage("Preparing an answer…", "assistant-response");
+                try {
+                    const response = await fetch("@Url.Action("Ask", "Assistant")", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "RequestVerificationToken": form.querySelector('input[name="__RequestVerificationToken"]').value
+                        },
+                        body: JSON.stringify({ message: question })
+                    });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.detail || "The assistant could not answer right now.");
+
+                    responseMessage.querySelector("p").textContent = result.answer;
+                    addSources(responseMessage, result.sources);
+                    status.textContent = "";
+                } catch (error) {
+                    responseMessage.querySelector("p").textContent = error.message || "The assistant could not answer right now.";
+                    status.textContent = "Please try again later.";
+                } finally {
+                    submit.disabled = false;
+                    input.focus();
+                    log.scrollTop = log.scrollHeight;
+                }
+            });
+        })();
+    </script>
+}
