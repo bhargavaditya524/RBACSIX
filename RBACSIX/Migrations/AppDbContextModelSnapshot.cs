@@ -581,6 +581,88 @@ namespace RBACSIX.Migrations
                     b.ToTable("ExamResults");
                 });
 
+            modelBuilder.Entity("RBACSIX.Models.KnowledgeChunk", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ChunkIndex")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EmbeddingJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("KnowledgeDocumentId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PageNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KnowledgeDocumentId", "ChunkIndex")
+                        .IsUnique();
+
+                    b.ToTable("KnowledgeChunks");
+                });
+
+            modelBuilder.Entity("RBACSIX.Models.KnowledgeDocument", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("StoredFileName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("UploadedByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UploadedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Sha256")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "UploadedUtc");
+
+                    b.ToTable("KnowledgeDocuments");
+                });
+
             modelBuilder.Entity("RBACSIX.Models.LeaveRequest", b =>
                 {
                     b.Property<int>("Id")
@@ -1358,6 +1440,17 @@ namespace RBACSIX.Migrations
                     b.Navigation("RecordedByUser");
                 });
 
+            modelBuilder.Entity("RBACSIX.Models.KnowledgeChunk", b =>
+                {
+                    b.HasOne("RBACSIX.Models.KnowledgeDocument", "KnowledgeDocument")
+                        .WithMany("Chunks")
+                        .HasForeignKey("KnowledgeDocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("KnowledgeDocument");
+                });
+
             modelBuilder.Entity("RBACSIX.Models.LeaveRequest", b =>
                 {
                     b.HasOne("RBACSIX.Models.Enrollment", "Enrollment")
@@ -1586,6 +1679,11 @@ namespace RBACSIX.Migrations
                     b.Navigation("Payments");
 
                     b.Navigation("Results");
+                });
+
+            modelBuilder.Entity("RBACSIX.Models.KnowledgeDocument", b =>
+                {
+                    b.Navigation("Chunks");
                 });
 
             modelBuilder.Entity("RBACSIX.Models.ParentProfile", b =>

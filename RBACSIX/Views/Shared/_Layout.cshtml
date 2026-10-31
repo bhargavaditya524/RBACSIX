@@ -28,6 +28,7 @@
                         @if (User.IsInRole("Admin"))
                         {
                             <li class="nav-item"><a class="nav-link" asp-controller="Admin" asp-action="Index">Overview</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Assistant" asp-action="Index">Assistant</a></li>
                             <li class="nav-item dropdown">
                                 <button class="nav-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">People</button>
                                 <ul class="dropdown-menu">
@@ -51,12 +52,14 @@
                                     <li><a class="dropdown-item" asp-controller="Reports" asp-action="Index">Reports</a></li>
                                     <li><a class="dropdown-item" asp-controller="Admin" asp-action="GlobalAnnouncements">Global announcements</a></li>
                                     <li><a class="dropdown-item" asp-controller="Announcements" asp-action="Index">Announcements</a></li>
+                                    <li><a class="dropdown-item" asp-controller="KnowledgeDocuments" asp-action="Index">Assistant knowledge</a></li>
                                 </ul>
                             </li>
                         }
                         else if (User.IsInRole("Staff"))
                         {
                             <li class="nav-item"><a class="nav-link" asp-controller="Staff" asp-action="Index">My batches</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Assistant" asp-action="Index">Assistant</a></li>
                             <li class="nav-item"><a class="nav-link" asp-controller="Staff" asp-action="LeaveRequests">Leave requests</a></li>
                             <li class="nav-item"><a class="nav-link" asp-controller="Reports" asp-action="Index">Reports</a></li>
                             <li class="nav-item"><a class="nav-link" asp-controller="Announcements" asp-action="Index">Announcements</a></li>
@@ -64,6 +67,7 @@
                         else if (User.IsInRole("Student"))
                         {
                             <li class="nav-item"><a class="nav-link" asp-controller="Student" asp-action="Index">My learning</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Assistant" asp-action="Index">Assistant</a></li>
                             <li class="nav-item dropdown">
                                 <button class="nav-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Learning tools</button>
                                 <ul class="dropdown-menu">
@@ -85,6 +89,7 @@
                         else if (User.IsInRole("Parent"))
                         {
                             <li class="nav-item"><a class="nav-link" asp-controller="Parent" asp-action="Index">Children</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Assistant" asp-action="Index">Assistant</a></li>
                             <li class="nav-item"><a class="nav-link" asp-controller="Parent" asp-action="LeaveRequests">Leave requests</a></li>
                             <li class="nav-item"><a class="nav-link" asp-controller="Announcements" asp-action="Index">Announcements</a></li>
                         }

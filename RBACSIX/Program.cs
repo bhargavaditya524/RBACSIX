@@ -34,6 +34,12 @@ builder.Services.AddHttpClient<IZoomMeetingService, ZoomMeetingService>();
 builder.Services.AddHostedService<ScheduledClassCleanupService>();
 builder.Services.Configure<PrivateFileStorageOptions>(builder.Configuration.GetSection("Files"));
 builder.Services.AddSingleton<IPrivateFileStorage, PrivateFileStorage>();
+builder.Services.Configure<CoachingAssistantOptions>(
+    builder.Configuration.GetSection("CoachingAssistant"));
+builder.Services.AddHttpClient<CoachingAiProvider>();
+builder.Services.AddScoped<CoachingAssistantContextService>();
+builder.Services.AddScoped<CoachingKnowledgeService>();
+builder.Services.AddScoped<CoachingAssistantService>();
 builder.Services.AddHostedService<QuizExpirationService>();
 var coachingTimeZoneId = builder.Configuration["Coaching:TimeZoneId"] ?? "Asia/Kolkata";
 var coachingTimeZone = TimeZoneInfo.FindSystemTimeZoneById(coachingTimeZoneId);
@@ -70,6 +76,13 @@ if (zoomConfiguration.All(string.IsNullOrWhiteSpace))
 {
     app.Logger.LogInformation(
         "Zoom class scheduling is disabled until Zoom:AccountId, Zoom:ClientId, and Zoom:ClientSecret are configured.");
+}
+
+var assistantOptions = app.Services.GetRequiredService<IOptions<CoachingAssistantOptions>>().Value;
+if (string.IsNullOrWhiteSpace(assistantOptions.ApiKey))
+{
+    app.Logger.LogWarning(
+        "The coaching assistant is unavailable until CoachingAssistant:ApiKey is configured.");
 }
 
 using (var scope = app.Services.CreateScope())
